@@ -11,7 +11,7 @@ base_params = {
 }
 
 
-def get_quote_info(symbol):
+def get_quote(symbol):
     params = base_params
     params["chartIEXOnly"] = "True"
     result = requests.get(f"{base_url}/{version}/stock/{symbol}/quote/", params=params)
@@ -22,7 +22,7 @@ def get_quote_info(symbol):
 
 
 if __name__ == "__main__":
-    data = get_quote_info("Intl")
+    data = get_quote("Intl")
     print(data)
     for key in data:
         print(key, ": '", data[key], "'", sep="")
