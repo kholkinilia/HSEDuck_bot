@@ -1,101 +1,173 @@
-from queue import Queue
+import random
+import stock_handler
+
+challenges = dict()
 
 
-class State:
-    INITIAL = 0
-    EARNING_MONEY = 1
-    BUYING_SHARE = 2
-    GOING_SHORT = 3
-    CHECKING_STOCK = 4
+def get_id():
+    result = ""
+    for i in range(20):
+        result += chr(random.randint(33, 126))
+    return result
 
 
-class Position:
-    def __init__(self, amount=0, price=0, currency="USD"):
+class Share:
+    def __init__(self, amount, price, currency):
+        # if currency == "_CURRENCY_" then the Share is actually a currency
         self.amount = amount
-        self.price = price
+        self.total_price = price
         self.currency = currency
-        self.recently_viewed_stocks = Queue()
+
+
+class Challenge:
+    def __init__(self, users, is_portfolio, initial_money, duration, chat_id):
+        self.id = get_id()
+        self.users = set(users)
+        self.is_main_challenge = is_portfolio
+        self.initial_money = None
+        self.left_time = None
+        self.chat_id = users[0]
+        if not is_portfolio:
+            self.initial_money = initial_money
+            self.left_time = duration
+            self.chat_id = chat_id
+
+    def finish(self):
+        # TODO: implement that complex function
+        pass
+
+    def add_user(self, user_id):
+        if user_id in self.users:
+            return False
+        self.users.add(user_id)
+        return True
 
 
 class User:
-    MAX_VIEWED_LIST_LENGTH = 4
-
-    def __init__(self, name):
+    def __init__(self, name, user_id):
+        global challenges
+        self.portfolios = dict()
+        self.challenge_name = dict()
+        self.challenges = set()
+        self.shorted_stocks = dict()
         self.name = name
-        self.portfolio = dict()
-        self.currency_amount = dict()
-        self.state = State.INITIAL
-        self.viewed_stocks = Queue()
+        self.id = user_id
+        self.cur_challenge_id = 0
+        self.main_portfolio_id = 0
+        self.invested = dict()
+        self.add_portfolio("Main portfolio")
 
-    def can_afford(self, need_amount, currency):
-        if currency not in self.currency_amount:
-            return False
-        return self.currency_amount[currency] <= need_amount
+    def add_portfolio(self, name):
+        cur = Challenge([self.id], True, None, None, None)
+        self.challenges.add(cur.id)
+        self.cur_challenge_id = cur.id
+        self.portfolios[cur.id] = dict()
+        challenges[cur.id] = cur
+        self.main_portfolio_id = cur.id
+        self.invested[cur.id] = 0
+        self.challenge_name[cur.id] = name
 
-    def buy_symbol(self, symbol, amount, price, currency):
-        symbol = symbol.upper()
-        if amount == 0:
-            return f"You rejected to buy {symbol}"
-        if not self.can_afford(price * amount, currency):
-            return f"You don't have enough {currency}.\nYou have: " \
-                   f"{0 if currency not in self.currency_amount else self.currency_amount[currency]} {currency}, " \
-                   f"but need {price * amount} {currency}."
-        if symbol not in self.portfolio:
-            self.portfolio[symbol] = Position(0, 0, currency)
-        self.currency_amount[currency] -= amount * price
-        self.portfolio[symbol].amount += amount
-        self.portfolio[symbol].price += price
-        return f"Bought {amount} share{'s' if amount > 1 else ''} of {symbol} for {amount * price} {currency}."
+    def switch_portfolio(self, chall_id):
+        self.cur_challenge_id = chall_id
 
-    def print_portfolio(self):
-        if not self.portfolio and not self.currency_amount:
+    def rename_portfolio(self, challenge_id, new_name):
+        self.challenge_name[challenge_id] = new_name
+
+    def show_portfolio(self):
+        if not self.portfolios[self.cur_challenge_id]:
             return "You don't have any shares or currency yet."
-        result = f"======= {self.name} =======\n"
-        if self.portfolio:
-            result += f">>>>>| Stock |<<<<<\n"
-        for symbol in self.portfolio:
-            result += f"--- {symbol} --- \n" \
-                      f"amount: {self.portfolio[symbol].amount}\n" \
-                      f"avg price: {self.portfolio[symbol].price / self.portfolio[symbol].amount} " \
-                      f"{self.portfolio[symbol].currency}\n" \
-                      f"total price: {self.portfolio[symbol].price} {self.portfolio[symbol].currency}\n"
-        if self.currency_amount:
-            result += f">>>>>| Currency |<<<<<\n"
-        for currency in self.currency_amount:
-            result += f"--- {currency}\n amount: {self.currency_amount[currency]}\n"
+        data = stock_handler.get_multiple_quote(self.get_stock_list())
+        # TODO: make it work for all currencies
+        cur_wealth = self.portfolios[self.cur_challenge_id]["USD"].amount
+        for symbol in data:
+            if symbol == 'error':
+                break
+            cur_wealth += data[symbol]["quote"]["latestPrice"] * self.portfolios[self.cur_challenge_id][symbol].amount
+        cur_invest = self.invested[self.cur_challenge_id]
+        result = f">>>>>>>| {self.challenge_name[self.cur_challenge_id]} of {self.name} |<<<<<<<\n"
+        result += f"TOTAL: {cur_invest} -> {'%.3f' % cur_wealth} USD\n"
+        result += f"PRCNT: {'%.3f' % (100 * (cur_wealth - cur_invest) / cur_invest)}%\n"
+        for symbol in self.portfolios[self.cur_challenge_id]:
+            cur_price = self.portfolios[self.cur_challenge_id][symbol].total_price
+            cur_amount = self.portfolios[self.cur_challenge_id][symbol].amount
+            avg_price = cur_price / cur_amount
+            cur_currency = self.portfolios[self.cur_challenge_id][symbol].currency
+            result += f"--- {symbol} --- \n"
+            if self.portfolios[self.cur_challenge_id][symbol].currency != "_CURRENCY_":
+                result += f"amount: {cur_amount}\n"
+                real_price = float(data[symbol]["quote"]["latestPrice"])
+                result += f"price: {'%.3f' % avg_price} -> {'%.3f' % real_price} {cur_currency}\n"
+                result += f"total price: {'%.3f' % cur_price} -> {'%.3f' % (real_price * cur_amount)} {cur_currency}\n"
+                result += f"change: {'%.3f' % (real_price * cur_amount - cur_price)} {cur_currency}\n"
+                result += f"percent: {'%.3f' % (100 * (real_price * cur_amount - cur_price) / cur_price)}%\n"
+            else:
+                result += f"amount: {'%.3f' % cur_amount}\n"
+        return result
+
+    def get_stock_list(self):
+        stock = []
+        for symbol in self.portfolios[self.cur_challenge_id]:
+            if self.portfolios[self.cur_challenge_id][symbol].currency != "_CURRENCY_":
+                stock.append(symbol)
+        return stock
+
+    def get_stats(self):
+        result = f">>>>>>>| {self.challenge_name[self.cur_challenge_id]} of {self.name} |<<<<<<<\n"
+        # TODO
         return result
 
     def add_currency(self, amount, currency):
-        if currency not in self.currency_amount:
-            self.currency_amount[currency] = 0
-        self.currency_amount[currency] += amount
-        return f"{amount} {currency} are successfully added to your wallet."
+        if currency not in self.portfolios[self.cur_challenge_id]:
+            self.portfolios[self.cur_challenge_id][currency] = Share(0, 0, "_CURRENCY_")
+        self.invested[self.cur_challenge_id] += amount
+        self.portfolios[self.cur_challenge_id][currency].amount += amount
 
-    def add_viewed_stock(self, symbol):
+    def buy_stock(self, symbol, amount, price, currency):
         symbol = symbol.upper()
-        if symbol not in self.get_viewed_list():
-            self.viewed_stocks.put(symbol)
-            if self.viewed_stocks.qsize() == User.MAX_VIEWED_LIST_LENGTH + 1:
-                self.viewed_stocks.get()
-        else:
-            self.move_up_in_viewed(symbol)
+        price = price
+        if currency not in self.portfolios[self.cur_challenge_id] or amount * price > \
+                self.portfolios[self.cur_challenge_id][currency].amount:
+            print(currency not in self.portfolios[self.cur_challenge_id],
+                  amount * price > self.portfolios[self.cur_challenge_id][currency].amount)
+            return False
+        if symbol not in self.portfolios[self.cur_challenge_id]:
+            self.portfolios[self.cur_challenge_id][symbol] = Share(0, 0, currency)
+        self.portfolios[self.cur_challenge_id][symbol].amount += amount
+        self.portfolios[self.cur_challenge_id][symbol].total_price += price * amount
+        self.portfolios[self.cur_challenge_id][currency].amount -= amount * price
+        return True
 
-    def move_up_in_viewed(self, symbol):
+    def sell_stock(self, symbol, amount, price):
         symbol = symbol.upper()
-        q = Queue()
-        while not self.viewed_stocks.empty():
-            cur_symbol = self.viewed_stocks.get()
-            if cur_symbol == symbol:
-                continue
-            q.put(cur_symbol)
-        q.put(symbol)
-        self.viewed_stocks = q
+        price = price
+        if symbol not in self.portfolios[self.cur_challenge_id] or amount > \
+                self.portfolios[self.cur_challenge_id][symbol]:
+            return False
+        if self.portfolios[self.cur_challenge_id][symbol].currency not in self.portfolios[self.cur_challenge_id]:
+            self.portfolios[self.cur_challenge_id][self.portfolios[self.cur_challenge_id].currency] \
+                = Share(0, 0, "_CURRENCY_")
+        self.portfolios[self.cur_challenge_id][symbol].amount -= amount
+        self.portfolios[self.cur_challenge_id][symbol].total_price -= price * amount
+        self.portfolios[self.cur_challenge_id][
+            self.portfolios[self.cur_challenge_id][symbol].currency].amount -= amount * price
+        return True
 
-    def get_viewed_list(self):
-        result = []
-        q = Queue()
-        while not self.viewed_stocks.empty():
-            result.append(self.viewed_stocks.get())
-            q.put(result[-1])
-        self.viewed_stocks = q
-        return result
+    def sell_short(self, symbol, amount, price, currency):
+        # TODO
+        pass
+
+    def buy_short(self, symbol, amount, price, currency):
+        # TODO
+        pass
+
+
+if __name__ == "__main__":
+    kellon = User("Kellon", 1)
+    kellon.add_currency(1000, "USD")
+    kellon.buy_stock("qdel", 3, stock_handler.get_price("qdel"), "USD")
+    kellon.buy_stock("baba", 1, stock_handler.get_price("baba"), "USD")
+    kellon.add_portfolio("NEW")
+    kellon.add_currency(10, "USD")
+    for port_id in kellon.challenges:
+        kellon.switch_portfolio(port_id)
+        print(kellon.show_portfolio())
