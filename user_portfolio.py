@@ -1,10 +1,62 @@
 import random
 import stock_handler
+import json
 
 # TODO: make money integers
 
 challenges = dict()
 users = dict()
+
+
+def save():
+    chall = encode_challenges()
+    user = encode_users()
+    f = open("challenges.json", "w")
+    f.write(json.dumps(chall))
+    f.close()
+    f = open("users.json", "w")
+    f.write(json.dumps(user))
+    f.close()
+
+
+def restore():
+    global challenges, users
+    f = open("challenges.json", "r")
+    decode_challenges(json.loads(f.readline()))
+    f.close()
+    f = open("users.json", "r")
+    decode_users(json.loads(f.readline()))
+    f.close()
+
+
+def encode_challenges():
+    result = dict()
+    for cur_id in challenges:
+        result[cur_id] = challenges[cur_id].get_dict()
+    return result
+
+
+def encode_users():
+    result = dict()
+    for cur_id in users:
+        result[cur_id] = users[cur_id].get_dict()
+    return result
+
+
+def decode_users(d):
+    global users
+    users.clear()
+    for cur_id in d:
+        users[cur_id] = User("", 0)
+        users[cur_id].set_dict(d[cur_id])
+
+
+def decode_challenges(d):
+    global challenges
+    challenges.clear()
+    for cur_id in d:
+        challenges[cur_id] = Challenge([0], 0, 0, 0, 0)
+        challenges[cur_id].set_dict(d[cur_id])
 
 
 def get_id():
@@ -20,6 +72,19 @@ class Share:
         self.amount = amount
         self.total_price = price
         self.currency = currency
+
+    def get_dict(self):
+        result = {
+            "amount": self.amount,
+            "total_price": self.total_price,
+            "currency": self.currency
+        }
+        return result
+
+    def set_dict(self, d):
+        self.amount = d["amount"]
+        self.total_price = d["total_price"]
+        self.currency = d["currency"]
 
 
 class Challenge:
@@ -37,9 +102,36 @@ class Challenge:
             self.left_time = duration
             self.chat_id = chat_id
 
+    def get_dict(self):
+        users_id = dict()
+        for user_id in self.users_id:
+            users_id[user_id] = 1
+        result = {
+            "users_id": users_id,
+            "id": self.id,
+            "is_private": self.is_private,
+            "initial_money": self.initial_money,
+            "left_time": self.left_time,
+            "chat_id": self.chat_id,
+            "finished": self.finished,
+            "host": self.host
+        }
+        return result
+
+    def set_dict(self, d):
+        self.id = d["id"]
+        self.users_id = set(d["users_id"].keys())
+        self.is_private = d["is_private"]
+        self.initial_money = d["initial_money"]
+        self.left_time = d["left_time"]
+        self.chat_id = d["chat_id"]
+        self.finished = d["finished"]
+        self.host = d["host"]
+
     def get_rankings(self):
+        # TODO: can be optimized by requesting get_stock_list only once
         rankings = [(users[user_id].get_wealth(self.id, stock_handler.get_multiple_quote(
-                     users[user_id].get_stock_list(self.id))),
+            users[user_id].get_stock_list(self.id))),
                      users[user_id].name) for user_id in self.users_id]
         rankings.sort(reverse=True)
         return rankings
@@ -92,6 +184,58 @@ class User:
         self.main_portfolio_id = self.cur_challenge_id
         users[user_id] = self
 
+    def get_dict(self):
+        portfolios = dict()
+        for cur_id in self.portfolios:
+            portfolios[cur_id] = dict()
+            for symbol in self.portfolios[cur_id]:
+                portfolios[cur_id][symbol] = self.portfolios[cur_id][symbol].get_dict()
+        shorted_stocks = dict()
+        for cur_id in self.shorted_stocks:
+            shorted_stocks[cur_id] = dict()
+            for symbol in self.shorted_stocks[cur_id]:
+                shorted_stocks[cur_id][symbol] = self.shorted_stocks[cur_id][symbol].get_dict()
+        taken_name_counters = dict()
+        for name in self.taken_name_counters:
+            taken_name_counters[name] = dict()
+            for counter in self.taken_name_counters[name]:
+                taken_name_counters[name][counter] = counter
+        result = {
+            "portfolios": portfolios,
+            "shorted_stocks": shorted_stocks,
+            "currency": self.currency,
+            "challenge_name": self.challenge_name,
+            "taken_name_counters": taken_name_counters,
+            "name": self.name,
+            "id": self.id,
+            "cur_challenge_id": self.cur_challenge_id,
+            "invested": self.invested,
+            "main_portfolio_id": self.main_portfolio_id
+        }
+        return result
+
+    def set_dict(self, d):
+        for cur_id in d["portfolios"]:
+            self.portfolios[cur_id] = dict()
+            for symbol in d["portfolios"][cur_id]:
+                self.portfolios[cur_id][symbol] = Share(0, 0, "USD")
+                self.portfolios[cur_id][symbol].set_dict(d["portfolios"][cur_id][symbol])
+        for cur_id in d["portfolios"]:
+            self.shorted_stocks[cur_id] = dict()
+            for symbol in d["portfolios"][cur_id]:
+                self.shorted_stocks[cur_id][symbol] = Share(0, 0, "USD")
+                self.shorted_stocks[cur_id][symbol].set_dict(d["portfolios"][cur_id][symbol])
+        for name in d["taken_name_counters"]:
+            self.taken_name_counters[name] = set(d["taken_name_counters"][name].values())
+        # print(self.taken_name_counters)
+        self.currency = d["currency"]
+        self.challenge_name = d["challenge_name"]
+        self.name = d["name"]
+        self.id = d["id"]
+        self.cur_challenge_id = d["cur_challenge_id"]
+        self.invested = d["invested"]
+        self.main_portfolio_id = d["main_portfolio_id"]
+
     def add_portfolio(self, name):
         cur = Challenge([self.id], True, None, None, None)
         self.cur_challenge_id = cur.id
@@ -134,7 +278,6 @@ class User:
 
     def get_cur_portfolio_name(self):
         result = self.challenge_name[self.cur_challenge_id]
-        print(result[len(result) - 3::])
         if result[len(result) - 3::] == "(0)":
             return result[:len(result) - 3:]
         return result
@@ -147,8 +290,6 @@ class User:
         name = self.challenge_name[self.cur_challenge_id].split("(")
         name[1] = name[1][:len(name[1]) - 1:]
         name[1] = int(name[1])
-        print(name)
-        print(new_name)
         self.taken_name_counters[name[0]].remove(name[1])
         name_counter = self.get_name_counter(new_name)
         self.challenge_name[self.cur_challenge_id] = new_name + f"({name_counter})"
@@ -179,12 +320,13 @@ class User:
             return "You don't have any shares or currency yet."
         data = stock_handler.get_multiple_quote(self.get_stock_list(self.cur_challenge_id))
         print(data, self.get_stock_list(self.cur_challenge_id))
-        # TODO: make it work for all currencies
+        # TODO: make it work for multiple currencies
         cur_wealth = self.get_wealth(self.cur_challenge_id, data)
-        cur_invest = self.invested[self.cur_challenge_id]
+        cur_investment = self.invested[self.cur_challenge_id]
         result = f">>>>>>>| '{self.get_cur_portfolio_name()}' portfolio of {self.name} |<<<<<<<\n"
-        result += f"total: {cur_invest} => {'%.3f' % cur_wealth} USD\n"
-        result += f"prcnt: {'%.3f' % (100 * (cur_wealth - cur_invest) / cur_invest)}%\n"
+        result += f"total: {cur_investment} => {'%.3f' % cur_wealth} USD\n"
+        if cur_investment:
+            result += f"prcnt: {'%.3f' % (100 * (cur_wealth - cur_investment) / cur_investment)}%\n"
         for currency in self.currency[self.cur_challenge_id]:
             result += f"{currency}: {'%.3f' % self.currency[self.cur_challenge_id][currency]}\n"
         for symbol in self.portfolios[self.cur_challenge_id]:
@@ -223,7 +365,6 @@ class User:
         return result
 
     def add_currency(self, amount, currency):
-        print(amount, currency)
         if amount == 0:
             return
         if currency not in self.currency[self.cur_challenge_id]:
@@ -253,11 +394,12 @@ class User:
         cur_currency = self.portfolios[self.cur_challenge_id][symbol].currency
         if cur_currency not in self.currency[self.cur_challenge_id]:
             self.currency[self.cur_challenge_id][cur_currency] = 0
+        if self.portfolios[self.cur_challenge_id][symbol].amount == amount:
+            del self.portfolios[self.cur_challenge_id][symbol]
+            return True
         self.portfolios[self.cur_challenge_id][symbol].amount -= amount
         self.portfolios[self.cur_challenge_id][symbol].total_price -= amount * (cur_total_price / cur_amount)
         self.currency[self.cur_challenge_id][cur_currency] += amount * price
-        if self.portfolios[self.cur_challenge_id][symbol].amount == 0:
-            del self.portfolios[self.cur_challenge_id][symbol]
         return True
 
     def sell_short(self, symbol, amount, price, currency):
@@ -271,36 +413,67 @@ class User:
         return True
 
     def buy_short(self, symbol, amount, price):
-        # TODO: fix, not working in challenge
+        # TODO: fix, not working in challenge: does not change the amount somehow
         symbol = symbol.upper()
         if symbol not in self.shorted_stocks[self.cur_challenge_id] or self.shorted_stocks[self.cur_challenge_id][
-            symbol].currency not in self.portfolios[self.cur_challenge_id]:
+            symbol].currency not in self.currency[self.cur_challenge_id]:
+            if symbol not in self.shorted_stocks[self.cur_challenge_id]:
+                print("NO SUCH SYMBOL")
+            else:
+                print("NO SUCH CURRENCY")
             return False
+        print("here")
         cur_total_price = self.shorted_stocks[self.cur_challenge_id][symbol].total_price
         cur_amount = self.shorted_stocks[self.cur_challenge_id][symbol].amount
         cur_currency = self.shorted_stocks[self.cur_challenge_id][symbol].currency
         if self.currency[self.cur_challenge_id][cur_currency] + amount * (
                 price - cur_total_price / cur_amount) < 0:
             return False
+        print("there")
+        if self.shorted_stocks[self.cur_challenge_id][symbol].amount == amount:
+            del self.shorted_stocks[self.cur_challenge_id][symbol]
+            return True
         self.shorted_stocks[self.cur_challenge_id][symbol].amount -= amount
         self.shorted_stocks[self.cur_challenge_id][symbol].total_price -= amount * (cur_total_price / cur_amount)
         self.currency[self.cur_challenge_id][cur_currency] += amount * (price - cur_total_price / cur_amount)
         return True
 
+    def get_currency(self, symbol):
+        if symbol in self.portfolios[self.cur_challenge_id]:
+            return self.portfolios[self.cur_challenge_id][symbol].currency
+        elif symbol in self.shorted_stocks[self.cur_challenge_id]:
+            return self.shorted_stocks[self.cur_challenge_id][symbol].currency
+        return "UNKNOWN"
+
+    def get_delta_short(self, symbol, price):
+        if symbol not in self.shorted_stocks[self.cur_challenge_id]:
+            print("zero")
+            return 0
+        print("total:", self.shorted_stocks[self.cur_challenge_id][symbol].total_price)
+        print("amount:", self.shorted_stocks[self.cur_challenge_id][symbol].amount)
+        print("delta: ", price, "-", self.shorted_stocks[self.cur_challenge_id][symbol].total_price /
+              self.shorted_stocks[self.cur_challenge_id][symbol].amount)
+        return self.shorted_stocks[self.cur_challenge_id][symbol].total_price / \
+               self.shorted_stocks[self.cur_challenge_id][symbol].amount - price
+
     def can_afford(self, price, currency):
+        print("in can afford", price)
         if currency not in self.currency[self.cur_challenge_id]:
             return 0
-        return int(self.currency[self.cur_challenge_id][currency] // price)
+        return int(self.currency[self.cur_challenge_id][currency] / price)
 
     def can_sell(self, symbol):
         if symbol not in self.portfolios[self.cur_challenge_id]:
             return 0
         return self.portfolios[self.cur_challenge_id][symbol].amount
 
-    def can_buy_short(self, symbol):
+    def can_buy_short(self, symbol, price_delta, currency):
         if symbol not in self.shorted_stocks[self.cur_challenge_id]:
             return 0
-        return self.shorted_stocks[self.cur_challenge_id][symbol].amount
+        print("DELTA:", price_delta)
+        if price_delta >= 0:
+            return self.shorted_stocks[self.cur_challenge_id][symbol].amount
+        return min(self.can_afford(-price_delta, currency), self.shorted_stocks[self.cur_challenge_id][symbol].amount)
 
     def in_private_portfolio(self):
         return challenges[self.cur_challenge_id].is_private
@@ -356,3 +529,6 @@ if __name__ == "__main__":
     for port_id in kellon.challenge_name:
         kellon.switch_portfolio(port_id)
         print(kellon.show_portfolio())
+
+    save()
+    restore()

@@ -1,6 +1,9 @@
+import requests.exceptions
 import telebot
 import stock_handler
-from user_portfolio import User, users, challenges
+from user_portfolio import User
+import user_portfolio
+import json
 from telebot import types
 
 bot = telebot.TeleBot("2075815152:AAGrkae06TYfdCLIglo8fyLOzth1Byvq6JU")
@@ -26,6 +29,8 @@ class State:
 
 # bot.send_message(chat_id, "Choose what you want to do: ", reply_markup=markup)
 use_buttons_message = "Please, use buttons to interact with the bot. If you don't see them, click on /show_buttons."
+users = user_portfolio.users
+challenges = user_portfolio.challenges
 state = dict()
 search_history = dict()
 buying = dict()
@@ -34,6 +39,52 @@ buying_short = dict()
 selling_short = dict()
 
 HISTORY_SIZE = 4
+
+
+def save():
+    user_portfolio.save()
+    f = open("main_stuff.json", "w")
+    f.write(json.dumps(get_dict()))
+    f.close()
+
+
+def restore():
+    global users, challenges
+    try:
+        f = open("main_stuff.json", "r")
+        set_dict(json.loads(f.readline()))
+        f.close()
+        user_portfolio.restore()
+        print("Restored last save successfully")
+    except FileNotFoundError:
+        print("Nothing to restore")
+    # print(id(users))
+    # print(id(user_portfolio.users))
+    users = user_portfolio.users
+    challenges = user_portfolio.challenges
+    # print(id(users) == id(user_portfolio.users))
+
+
+def get_dict():
+    result = {
+        "state": state,
+        "search_history": search_history,
+        "buying": buying,
+        "selling": selling,
+        "buying_short": buying_short,
+        "selling_short": selling_short
+    }
+    return result
+
+
+def set_dict(d):
+    global state, search_history, buying, selling, buying_short, selling_short
+    state = d["state"]
+    search_history = d["search_history"]
+    buying = d["buying"]
+    selling = d["selling"]
+    buying_short = d["buying_short"]
+    selling_short = d["selling_short"]
 
 
 def add_to_search_history(user_id, symbol):
@@ -101,7 +152,7 @@ def get_search_markup(user_id):
 def get_challenge_markup():
     markup = types.ReplyKeyboardMarkup()
     markup.row("Show rankings")
-    markup.row("Quit", "End challenge", "Rename")
+    markup.row("Quit", "End challenge", "Rename", "Join message")
     markup.row("Switch challenge", "Create challenge")
     markup.row("◀Back", "🏠Return home")
     return markup
@@ -129,9 +180,13 @@ def send_message(chat_id, message, user_id):
     bot.send_message(chat_id, message, reply_markup=get_markup(user_id))
 
 
+admin_id = "476183318"
+
+
 @bot.message_handler(content_types=["text"])
 def get_text_messages(message):
-    user_id = message.from_user.id
+    global admin_id
+    user_id = str(message.from_user.id)
     user_name = message.from_user.first_name
     chat_id = message.chat.id
     if user_id not in users:
@@ -148,6 +203,21 @@ def get_text_messages(message):
     cur_portfolio_name = users[user_id].get_cur_portfolio_name()
     # is_group = (message.chat.type == "group")
     print(f"Message from {user_name} ({user_id}): '{message.text}'")
+    if message.text == "/switch_type":
+        if user_id == admin_id:
+            stock_handler.switch_type()
+            send_message(chat_id, f"You switched to {'sandbox' if stock_handler.get_type() else 'real'} information.",
+                         user_id)
+        else:
+            send_message(chat_id, f"You are not allowed to do this :(", user_id)
+        return
+    if message.text == "/save":
+        if user_id == admin_id:
+            save()
+            send_message(chat_id, "Successfully saved current state.", user_id)
+        else:
+            send_message(chat_id, "You are not allowed to save the state.", user_id)
+        return
     if message.text.split("_")[0] == "join":
         challenge_id = message.text.split("_")[1]
         if challenge_id not in challenges:
@@ -358,11 +428,13 @@ def get_text_messages(message):
                     return
                 buying[user_id] = cur_message[1].upper()
                 state[user_id].append(State.BUY)
+                can_afford = users[user_id].can_afford(latest_price, currency)
                 respond = f"==== Buying {cur_message[1]} ====\n" \
                           f"Buying with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'\n" \
                           f"Available money: " \
                           f"{users[user_id].currency[users[user_id].cur_challenge_id][currency]} {currency}\n" \
-                          f"You can buy: {users[user_id].can_afford(latest_price, currency)} shares.\n" \
+                          f"Price {latest_price} {currency}\n" \
+                          f"You can buy: {can_afford} share{'s' if can_afford > 1 else ''}.\n" \
                           f"Enter the amount to buy:"
                 send_message(chat_id, respond, user_id)
                 return
@@ -374,8 +446,9 @@ def get_text_messages(message):
                 selling[user_id] = cur_message[1].upper()
                 state[user_id].append(State.SELL)
                 respond = f"==== Selling {cur_message[1]} ====\n" \
-                          f"Selling with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'\n" \
-                          f"You can sell:{users[user_id].can_sell(cur_message[1])}\n" \
+                          f"Selling with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'.\n" \
+                          f"You can sell:{users[user_id].can_sell(cur_message[1])}.\n" \
+                          f"Price: {stock_handler.get_price(cur_message[1])} USD.\n" \
                           f"Enter the amount to sell:"
                 send_message(chat_id, respond, user_id)
                 return
@@ -401,36 +474,54 @@ def get_text_messages(message):
                     return
                 selling_short[user_id] = cur_message[2].upper()
                 state[user_id].append(State.SELL_SHORT)
+                can_sell = users[user_id].can_afford(latest_price, currency)
                 respond = f"==== Selling short {cur_message[2]} ====\n" \
-                          f"Short with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'\n" \
+                          f"Short with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'.\n" \
+                          f"Price: {latest_price} {currency}.\n" \
+                          f"You can sell: {can_sell} share{'s' if can_sell > 1 else ''}.\n" \
                           f"Enter the amount of shares to short:"
                 send_message(chat_id, respond, user_id)
                 return
             if cur_message[0] + cur_message[1] == "📉Buyshort":
                 cur_message[2] = cur_message[2].upper()
-                if users[user_id].can_buy_short(cur_message[2]) == 0:
-                    send_message(chat_id, f"You didn't short this stock!", user_id)
+                if users[user_id].can_buy_short(cur_message[2], 0, "USD") == 0:
+                    send_message(chat_id,
+                                 f"You either didn't short this stock or can't afford buying back even one share",
+                                 user_id)
                     return
                 buying_short[user_id] = cur_message[2].upper()
                 state[user_id].append(State.BUY_SHORT)
+                price = stock_handler.get_price(cur_message[2])
+                delta = users[user_id].get_delta_short(cur_message[2], price)
+                currency = users[user_id].get_currency(cur_message[2])
+                can_afford = users[user_id].can_buy_short(cur_message[2], delta, currency)
                 respond = f"==== Buying short {cur_message[2]} ====\n" \
-                          f"Buying short with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'\n" \
-                          f"You can buy: {users[user_id].can_buy_short(cur_message[2])} shares\n" \
+                          f"Buying short with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'.\n" \
+                          f"You can buy: {can_afford} share{'s' if can_afford > 1 else ''}.\n" \
+                          f"Price: {price} {currency}.\n" \
                           f"Enter the amount to buy back:"
                 send_message(chat_id, respond, user_id)
                 return
     if state[user_id][-1] == State.BUY:
         if not message.text.isdigit():
-            send_message(chat_id, "Please enter a digit", user_id)
+            send_message(chat_id, "Please enter a number", user_id)
             return
         amount = int(message.text)
+        if amount == 0:
+            send_message(chat_id, "That is a strange amount to buy. o_o", user_id)
+            return
         price = stock_handler.get_price(buying[user_id])
+        if price <= 0:
+            send_message(chat_id,
+                         f"Something went wrong. We can't get a price of {buying[user_id]}. Please, try again later.",
+                         user_id)
         if amount > users[user_id].can_afford(price, "USD"):
             send_message(chat_id, f"You can afford only {users[user_id].can_afford(price, 'USD')}"
                                   f" shares, but tried to buy {amount}. Please enter a valid amount.", user_id)
             return
         users[user_id].buy_stock(buying[user_id], amount, price, "USD")
-        respond = f"Successfully bought {amount} share{'s' if amount > 1 else ''} of {buying[user_id]}."
+        respond = f"Successfully bought {amount} share{'s' if amount > 1 else ''} of {buying[user_id]} " \
+                  f"for {price} USD per each."
         state[user_id].pop()
         send_message(chat_id, respond, user_id)
         return
@@ -439,13 +530,17 @@ def get_text_messages(message):
             send_message(chat_id, "Please enter a digit", user_id)
             return
         amount = int(message.text)
+        if amount == 0:
+            send_message(chat_id, "That is a strange amount to sell. o_o", user_id)
+            return
         price = stock_handler.get_price(selling[user_id])
         if amount > users[user_id].can_sell(selling[user_id]):
             send_message(chat_id, f"You can sell only {users[user_id].can_sell(selling[user_id])}"
                                   f" shares, but tried to sell {amount}. Please enter a valid amount.", user_id)
             return
         users[user_id].sell_stock(selling[user_id], amount, price)
-        respond = f"Successfully sold {amount} share{'s' if amount > 1 else ''} of {selling[user_id]}."
+        respond = f"Successfully sold {amount} share{'s' if amount > 1 else ''} of {selling[user_id]} " \
+                  f"for {price} USD per each."
         state[user_id].pop()
         send_message(chat_id, respond, user_id)
         return
@@ -455,9 +550,16 @@ def get_text_messages(message):
             send_message(chat_id, "Please enter a digit", user_id)
             return
         amount = int(message.text)
+        if amount == 0:
+            send_message(chat_id, "That is a strange amount to sell. o_o", user_id)
+            return
         price = stock_handler.get_price(selling_short[user_id])
+        if amount > users[user_id].can_afford(price, "USD"):
+            send_message(chat_id, "You can't sell so much, because you cannot afford 100% raise of a stock.", user_id)
+            return
         users[user_id].sell_short(selling_short[user_id], amount, price, "USD")
-        respond = f"Successfully sold short {amount} share{'s' if amount > 1 else ''} of {selling_short[user_id]}."
+        respond = f"Successfully sold short {amount} share{'s' if amount > 1 else ''} of {selling_short[user_id]} " \
+                  f"for {price} USD per each."
         state[user_id].pop()
         send_message(chat_id, respond, user_id)
         return
@@ -466,13 +568,22 @@ def get_text_messages(message):
             send_message(chat_id, "Please enter a digit", user_id)
             return
         amount = int(message.text)
-        price = stock_handler.get_price(selling[user_id])
-        if amount > users[user_id].can_buy_short(buying_short[user_id]):
-            send_message(chat_id, f"You can buy short only {users[user_id].can_buy_short(buying_short[user_id])}"
+        if amount == 0:
+            send_message(chat_id, "That is a strange amount to buy. o_o", user_id)
+            return
+        price = stock_handler.get_price(buying_short[user_id])
+        print(buying_short[user_id], price)
+        delta = users[user_id].get_delta_short(buying_short[user_id], price)
+        currency = users[user_id].get_currency(buying_short[user_id])
+        print("can_buy: ", users[user_id].can_buy_short(buying_short[user_id], delta, currency))
+        if amount > users[user_id].can_buy_short(buying_short[user_id], delta, currency):
+            send_message(chat_id, f"You can buy short only "
+                                  f"{users[user_id].can_buy_short(buying_short[user_id], delta, currency)}"
                                   f" shares, but tried to sell {amount}. Please enter a valid amount.", user_id)
             return
         users[user_id].buy_short(buying_short[user_id], amount, price)
-        respond = f"Successfully bought short {amount} share{'s' if amount > 1 else ''} of {buying_short[user_id]}."
+        respond = f"Successfully bought short {amount} share{'s' if amount > 1 else ''} of {buying_short[user_id]} " \
+                  f"for {price} {currency} per each."
         state[user_id].pop()
         send_message(chat_id, respond, user_id)
         return
@@ -515,7 +626,7 @@ def get_text_messages(message):
                                          f" Here is a final rank list:\n" + respond)
                 if portfolio_changed:
                     bot.send_message(cur_id, f"Your portfolio automatically changed to "
-                                             f"'{users[cur_id].get_cur_portfolio_name()}'"
+                                             f"'{users[cur_id].get_cur_portfolio_name()}' "
                                              f"private portfolio.")
                 print(len(users_id))
             return
@@ -583,4 +694,15 @@ def get_text_messages(message):
 
 
 telebot.apihelper.SESSION_TIME_TO_LIVE = 5 * 60
-bot.polling(none_stop=True, interval=0)
+
+while True:
+    try:
+        restore()
+        bot.polling(none_stop=True, interval=0)
+    except requests.exceptions.ConnectTimeout:
+        save()
+        print("========= CONNECTION TROUBLES, TRYING TO RERUN! ==========")
+    except requests.exceptions.ReadTimeout:
+        save()
+        print("========= NO INTERNET, BOT STOPPED SAFELY ==========")
+        break
