@@ -55,6 +55,7 @@ def restore():
         set_dict(json.loads(f.readline()))
         f.close()
         user_portfolio.restore()
+        print(challenges)
         print("Restored last save successfully")
     except FileNotFoundError:
         print("Nothing to restore")
@@ -62,6 +63,7 @@ def restore():
     # print(id(user_portfolio.users))
     users = user_portfolio.users
     challenges = user_portfolio.challenges
+    print(challenges)
     # print(id(users) == id(user_portfolio.users))
 
 
@@ -102,13 +104,13 @@ def get_markup(user_id):
     if state_id == State.HOME:
         return get_home_markup()
     if state_id == State.PORTFOLIO:
-        return get_portfolio_markup()
+        return get_portfolio_markup(user_id)
     if state_id == State.SWITCH_PORTFOLIO:
         return get_switch_portfolio_markup(user_id)
     if state_id == State.SEARCH:
         return get_search_markup(user_id)
     if state_id == State.CHALLENGE:
-        return get_challenge_markup()
+        return get_challenge_markup(user_id)
     if state_id == State.SWITCH_CHALLENGE:
         return get_switch_challenge_markup(user_id)
     return get_return_home_markup()
@@ -129,12 +131,17 @@ def get_home_markup():
     return markup
 
 
-def get_portfolio_markup():
+def get_portfolio_markup(user_id):
     markup = types.ReplyKeyboardMarkup()
-    markup.row("Show portfolio", "Get statistics")
-    markup.row("Rename", "💵Add money")
-    markup.row("Switch portfolio", "Delete portfolio", "Create portfolio")
-    markup.row("◀Back", "🏠Return home")
+    if users[user_id].in_private_portfolio():
+        markup.row("Show portfolio", "Get statistics")
+        markup.row("Rename", "💵Add money")
+        markup.row("Switch portfolio", "Delete portfolio", "Create portfolio")
+        markup.row("◀Back", "🏠Return home")
+    else:
+        markup.row("Show portfolio", "Get statistics")
+        markup.row("Switch to private portfolio", "Create portfolio")
+        markup.row("◀Back", "🏠Return home")
     return markup
 
 
@@ -149,12 +156,16 @@ def get_search_markup(user_id):
     return markup
 
 
-def get_challenge_markup():
+def get_challenge_markup(user_id):
     markup = types.ReplyKeyboardMarkup()
-    markup.row("Show rankings")
-    markup.row("Quit", "End challenge", "Rename", "Join message")
-    markup.row("Switch challenge", "Create challenge")
-    markup.row("◀Back", "🏠Return home")
+    if not users[user_id].in_private_portfolio():
+        markup.row("Show rankings")
+        markup.row("Quit", "End challenge", "Rename", "Join message")
+        markup.row("Switch challenge", "Create challenge")
+        markup.row("◀Back", "🏠Return home")
+    else:
+        markup.row("Switch to challenge", "Create challenge")
+        markup.row("◀Back", "🏠Return home")
     return markup
 
 
@@ -185,6 +196,7 @@ admin_id = "476183318"
 
 @bot.message_handler(content_types=["text"])
 def get_text_messages(message):
+    print(challenges)
     global admin_id
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name
@@ -246,6 +258,7 @@ def get_text_messages(message):
         return
     if message.text == "/help":
         # TODO: write help
+        send_message(chat_id, "Nobody can help you, but you", user_id)
         return
     if message.text == "/show_buttons":
         send_message(chat_id, "Here are your buttons:", user_id)
@@ -270,7 +283,7 @@ def get_text_messages(message):
             send_message(chat_id, respond, user_id)
             return
         if message.text == "🔎Search":
-            respond = f"Enter a symbol of a stock."
+            respond = f"Enter a symbol of a stock or a name of the company."
             state[user_id].append(State().SEARCH)
             send_message(chat_id, respond, user_id)
             return
@@ -282,6 +295,21 @@ def get_text_messages(message):
             send_message(chat_id, respond, user_id)
             return
     if state[user_id][-1] == State().PORTFOLIO:
+        if message.text == "Delete portfolio":
+            print(challenges)
+            respond = ""
+            if not challenges[users[user_id].cur_challenge_id].is_private:
+                respond = f"You are in challenge portfolio. Please switch to private portfolio to delete it."
+            elif users[user_id].can_quit_challenge(users[user_id].cur_challenge_id):
+                respond = f"Successfully deleted '{cur_portfolio_name}' {cur_portfolio_type} portfolio.\n" \
+                          f"Your portfolio is automatically set to " \
+                          f"{users[user_id].get_challenge_name(users[user_id].cur_challenge_id)}"
+                users[user_id].quit_challenge(users[user_id].cur_challenge_id)
+            else:
+                respond = f"You can't delete the only private portfolio of yours." \
+                          f" To delete this portfolio consider creating a new one."
+            send_message(chat_id, respond, user_id)
+            return
         if message.text == "Show portfolio":
             respond = users[user_id].show_portfolio()
             send_message(chat_id, respond, user_id)
@@ -303,14 +331,14 @@ def get_text_messages(message):
             state[user_id].append(State().ADD_MONEY)
             send_message(chat_id, respond, user_id)
             return
-        if message.text == "Switch portfolio":
+        if message.text in ["Switch portfolio", "Switch to private portfolio"]:
             respond = "Choose portfolio to switch to from the list:"
             state[user_id].append(State().SWITCH_PORTFOLIO)
             send_message(chat_id, respond, user_id)
             return
         if message.text == "Create portfolio":
             respond = "Enter a name of a new private portfolio (a name cannot contain '(' character)" \
-                      " and an initial amount of money in it:\nExample: 'My new portfolio 1000'"
+                      " and an initial amount of money in it:\nExample: 'Stump 1000'"
             state[user_id].append(State().CREATE_PORTFOLIO)
             send_message(chat_id, respond, user_id)
             return
@@ -352,7 +380,7 @@ def get_text_messages(message):
         for i in range(len(msg) - 1):
             name += msg[i] + (" " if i != len(msg) - 2 else "")
         if name == "" or not msg[-1].isdigit():
-            send_message(chat_id, "Please enter a valid name and a number.\n Example: 'New portfolio 1000'", user_id)
+            send_message(chat_id, "Please enter a valid name and a number.\n Example: 'Stump 1000'", user_id)
             return
         if name.find("(") != -1:
             send_message(chat_id, "Name of portfolio cannot contain '(' character", user_id)
@@ -361,147 +389,159 @@ def get_text_messages(message):
         users[user_id].add_currency(int(msg[-1]), "USD")
         respond = f"Successfully created a new " \
                   f"'{users[user_id].get_cur_portfolio_name()}' private portfolio" \
-                  f" with {msg[-1]} USD.\n Your current portfolio switched to the created one."
+                  f" with {int(msg[-1])} USD.\n Your current portfolio switched to the created one."
         state[user_id].pop()
         send_message(chat_id, respond, user_id)
         return
     if state[user_id][-1] == State.SEARCH:
         cur_message = message.text.strip().split()
-        if len(cur_message) == 1:
-            cur_message[0] = cur_message[0].upper()
-            data = stock_handler.get_quote(cur_message[0])
+        if len(cur_message) == 2 and cur_message[0] == "📈Buy":
+            cur_message[1] = cur_message[1].upper()
+            data = stock_handler.get_quote(cur_message[1])
             if not data:
-                send_message(chat_id, "Sorry, we don't know that symbol. :(\nTry another one", user_id)
+                send_message(chat_id, "You can't buy that stock for some reason. Try another one!", user_id)
                 return
-            company_name = cur_message[0]
-            try:
-                company_name = data["companyName"]
-            except KeyError:
-                pass
             latest_price = "unknown"
             try:
-                latest_price = float(data["latestPrice"])
-            except (KeyError, TypeError):
+                latest_price = data["latestPrice"]
+            except KeyError:
                 pass
             currency = " of unknown currency"
             try:
                 currency = data["currency"]
             except KeyError:
                 pass
-            print(data)
             if latest_price == "unknown" or currency != "USD":
-                send_message(chat_id, "The company is bankrupt.", user_id)
+                send_message(chat_id, "You can't buy that stock for some reason. Try another one!", user_id)
                 return
-            can_afford = 0
-            if currency == "USD":
-                can_afford = users[user_id].can_afford(latest_price, currency)
-            respond = f"===== {company_name} =====\n" \
-                      f"Symbol: {cur_message[0]}\n" \
-                      f"Latest price: {latest_price} {currency}\n" \
-                      f"You can afford: {can_afford}\n" \
-                      f"You already have: {users[user_id].can_sell(cur_message[0])}"
-            add_to_search_history(user_id, cur_message[0])
+            if users[user_id].can_afford(latest_price, currency) == 0:
+                send_message(chat_id, "You cannot afford even a one share. Earn money, before buying.", user_id)
+                return
+            buying[user_id] = cur_message[1].upper()
+            state[user_id].append(State.BUY)
+            can_afford = users[user_id].can_afford(latest_price, currency)
+            respond = f"==== Buying {cur_message[1]} ====\n" \
+                      f"Buying with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'\n" \
+                      f"Available money: " \
+                      f"{users[user_id].currency[users[user_id].cur_challenge_id][currency]} {currency}\n" \
+                      f"Price {latest_price} {currency}\n" \
+                      f"You can buy: {can_afford} share{'s' if can_afford > 1 else ''}.\n" \
+                      f"Enter the amount to buy:"
             send_message(chat_id, respond, user_id)
             return
-        if len(cur_message) == 2:
-            if cur_message[0] == "📈Buy":
-                cur_message[1] = cur_message[1].upper()
-                data = stock_handler.get_quote(cur_message[1])
-                if not data:
-                    send_message(chat_id, "You can't buy that stock for some reason. Try another one!", user_id)
-                    return
-                latest_price = "unknown"
-                try:
-                    latest_price = data["latestPrice"]
-                except KeyError:
-                    pass
-                currency = " of unknown currency"
-                try:
-                    currency = data["currency"]
-                except KeyError:
-                    pass
-                if latest_price == "unknown" or currency != "USD":
-                    send_message(chat_id, "You can't buy that stock for some reason. Try another one!", user_id)
-                    return
-                if users[user_id].can_afford(latest_price, currency) == 0:
-                    send_message(chat_id, "You cannot afford even a one share. Earn money, before buying.", user_id)
-                    return
-                buying[user_id] = cur_message[1].upper()
-                state[user_id].append(State.BUY)
-                can_afford = users[user_id].can_afford(latest_price, currency)
-                respond = f"==== Buying {cur_message[1]} ====\n" \
-                          f"Buying with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'\n" \
-                          f"Available money: " \
-                          f"{users[user_id].currency[users[user_id].cur_challenge_id][currency]} {currency}\n" \
-                          f"Price {latest_price} {currency}\n" \
-                          f"You can buy: {can_afford} share{'s' if can_afford > 1 else ''}.\n" \
-                          f"Enter the amount to buy:"
-                send_message(chat_id, respond, user_id)
+        if len(cur_message) == 2 and cur_message[0] == "📈Sell":
+            cur_message[1] = cur_message[1].upper()
+            if users[user_id].can_sell(cur_message[1]) == 0:
+                send_message(chat_id, f"You don't have any shares of {cur_message[1]}!", user_id)
                 return
-            if cur_message[0] == "📈Sell":
-                cur_message[1] = cur_message[1].upper()
-                if users[user_id].can_sell(cur_message[1]) == 0:
-                    send_message(chat_id, f"You don't have any shares of {cur_message[1]}!", user_id)
-                    return
-                selling[user_id] = cur_message[1].upper()
-                state[user_id].append(State.SELL)
-                respond = f"==== Selling {cur_message[1]} ====\n" \
-                          f"Selling with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'.\n" \
-                          f"You can sell:{users[user_id].can_sell(cur_message[1])}.\n" \
-                          f"Price: {stock_handler.get_price(cur_message[1])} USD.\n" \
-                          f"Enter the amount to sell:"
-                send_message(chat_id, respond, user_id)
+            selling[user_id] = cur_message[1].upper()
+            state[user_id].append(State.SELL)
+            respond = f"==== Selling {cur_message[1]} ====\n" \
+                      f"Selling with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'.\n" \
+                      f"You can sell:{users[user_id].can_sell(cur_message[1])}.\n" \
+                      f"Price: {stock_handler.get_price(cur_message[1])} USD.\n" \
+                      f"Enter the amount to sell:"
+            send_message(chat_id, respond, user_id)
+            return
+        if len(cur_message) == 3 and cur_message[0] + cur_message[1] == "📉Sellshort":
+            cur_message[2] = cur_message[2].upper()
+            data = stock_handler.get_quote(cur_message[2])
+            if not data:
+                send_message(chat_id, "We don't know about that stock. :(", user_id)
                 return
-        if len(cur_message) == 3:
-            if cur_message[0] + cur_message[1] == "📉Sellshort":
-                cur_message[2] = cur_message[2].upper()
-                data = stock_handler.get_quote(cur_message[2])
-                if not data:
-                    send_message(chat_id, "We don't know about that stock. :(", user_id)
-                    return
-                latest_price = "unknown"
-                try:
-                    latest_price = data["latestPrice"]
-                except KeyError:
-                    pass
-                currency = " of unknown currency"
-                try:
-                    currency = data["currency"]
-                except KeyError:
-                    pass
-                if latest_price == "unknown" or currency != "USD":
-                    send_message(chat_id, "You can't short a stock for some reason. Try another one!", user_id)
-                    return
-                selling_short[user_id] = cur_message[2].upper()
-                state[user_id].append(State.SELL_SHORT)
-                can_sell = users[user_id].can_afford(latest_price, currency)
-                respond = f"==== Selling short {cur_message[2]} ====\n" \
-                          f"Short with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'.\n" \
-                          f"Price: {latest_price} {currency}.\n" \
-                          f"You can sell: {can_sell} share{'s' if can_sell > 1 else ''}.\n" \
-                          f"Enter the amount of shares to short:"
-                send_message(chat_id, respond, user_id)
+            latest_price = "unknown"
+            try:
+                latest_price = data["latestPrice"]
+            except KeyError:
+                pass
+            currency = " of unknown currency"
+            try:
+                currency = data["currency"]
+            except KeyError:
+                pass
+            if latest_price == "unknown" or currency != "USD":
+                send_message(chat_id, "You can't short a stock for some reason. Try another one!", user_id)
                 return
-            if cur_message[0] + cur_message[1] == "📉Buyshort":
-                cur_message[2] = cur_message[2].upper()
-                if users[user_id].can_buy_short(cur_message[2], 0, "USD") == 0:
-                    send_message(chat_id,
-                                 f"You either didn't short this stock or can't afford buying back even one share",
-                                 user_id)
-                    return
-                buying_short[user_id] = cur_message[2].upper()
-                state[user_id].append(State.BUY_SHORT)
-                price = stock_handler.get_price(cur_message[2])
-                delta = users[user_id].get_delta_short(cur_message[2], price)
-                currency = users[user_id].get_currency(cur_message[2])
-                can_afford = users[user_id].can_buy_short(cur_message[2], delta, currency)
-                respond = f"==== Buying short {cur_message[2]} ====\n" \
-                          f"Buying short with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'.\n" \
-                          f"You can buy: {can_afford} share{'s' if can_afford > 1 else ''}.\n" \
-                          f"Price: {price} {currency}.\n" \
-                          f"Enter the amount to buy back:"
-                send_message(chat_id, respond, user_id)
+            selling_short[user_id] = cur_message[2].upper()
+            state[user_id].append(State.SELL_SHORT)
+            can_sell = users[user_id].can_afford(latest_price, currency)
+            respond = f"==== Selling short {cur_message[2]} ====\n" \
+                      f"Short with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'.\n" \
+                      f"Price: {latest_price} {currency}.\n" \
+                      f"You can sell: {can_sell} share{'s' if can_sell > 1 else ''}.\n" \
+                      f"Enter the amount of shares to short:"
+            send_message(chat_id, respond, user_id)
+            return
+        if len(cur_message) == 3 and cur_message[0] + cur_message[1] == "📉Buyshort":
+            cur_message[2] = cur_message[2].upper()
+            if users[user_id].can_buy_short(cur_message[2], 0, "USD") == 0:
+                send_message(chat_id,
+                             f"You either didn't short this stock or can't afford buying back even one share",
+                             user_id)
                 return
+            buying_short[user_id] = cur_message[2].upper()
+            state[user_id].append(State.BUY_SHORT)
+            price = stock_handler.get_price(cur_message[2])
+            delta = users[user_id].get_delta_short(cur_message[2], price)
+            currency = users[user_id].get_currency(cur_message[2])
+            can_afford = users[user_id].can_buy_short(cur_message[2], delta, currency)
+            respond = f"==== Buying short {cur_message[2]} ====\n" \
+                      f"Buying short with {cur_portfolio_type} portfolio: '{cur_portfolio_name}'.\n" \
+                      f"You can buy: {can_afford} share{'s' if can_afford > 1 else ''}.\n" \
+                      f"Price: {price} {currency}.\n" \
+                      f"Enter the amount to buy back:"
+            send_message(chat_id, respond, user_id)
+            return
+        cur_message[0] = cur_message[0].upper()
+        data = stock_handler.get_quote(cur_message[0])
+        if not data:
+            respond = f"Sorry, we don't know that symbol. :(\n"
+            matches = stock_handler.get_best_matches(message.text.strip())
+            cnt = 1
+            print(matches)
+            if "bestMatches" in matches:
+                for stock in matches["bestMatches"]:
+                    if stock["4. region"] == "United States":
+                        if cnt == 1:
+                            respond += f"Here are the best matches for your request:\n"
+                        respond += f"=== {cnt} === \n" \
+                                   f"Company name: '{stock['2. name']}'.\n" \
+                                   f"Symbol: '{stock['1. symbol']}'\n"
+                        cnt += 1
+            if cnt == 1:
+                respond += "Please try another one."
+            send_message(chat_id, respond, user_id)
+            return
+        company_name = cur_message[0]
+        try:
+            company_name = data["companyName"]
+        except KeyError:
+            pass
+        latest_price = "unknown"
+        try:
+            latest_price = float(data["latestPrice"])
+        except (KeyError, TypeError):
+            pass
+        currency = " of unknown currency"
+        try:
+            currency = data["currency"]
+        except KeyError:
+            pass
+        print(data)
+        if latest_price == "unknown" or currency != "USD":
+            send_message(chat_id, "The company is bankrupt.", user_id)
+            return
+        can_afford = 0
+        if currency == "USD":
+            can_afford = users[user_id].can_afford(latest_price, currency)
+        respond = f"===== {company_name} =====\n" \
+                  f"Symbol: {cur_message[0]}\n" \
+                  f"Latest price: {latest_price} {currency}\n" \
+                  f"You can afford: {can_afford}\n" \
+                  f"You already have: {users[user_id].can_sell(cur_message[0])}"
+        add_to_search_history(user_id, cur_message[0])
+        send_message(chat_id, respond, user_id)
+        return
     if state[user_id][-1] == State.BUY:
         if not message.text.isdigit():
             send_message(chat_id, "Please enter a number", user_id)
@@ -545,7 +585,6 @@ def get_text_messages(message):
         send_message(chat_id, respond, user_id)
         return
     if state[user_id][-1] == State.SELL_SHORT:
-        # TODO: make restriction on the amount of bought shares
         if not message.text.isdigit():
             send_message(chat_id, "Please enter a digit", user_id)
             return
@@ -588,6 +627,12 @@ def get_text_messages(message):
         send_message(chat_id, respond, user_id)
         return
     if state[user_id][-1] == State.CHALLENGE:
+        if message.text == "Join message":
+            send_message(chat_id,
+                         f"One can enter the '{cur_portfolio_name}' challenge by sending to bot the following message:",
+                         user_id)
+            send_message(chat_id, "join_" + users[user_id].cur_challenge_id, user_id)
+            return
         if message.text == "Show rankings":
             if users[user_id].in_private_portfolio():
                 send_message(chat_id, "You are now in private portfolio. "
@@ -614,20 +659,20 @@ def get_text_messages(message):
                                       f"\nThe host is {users[challenges[users[user_id].cur_challenge_id].host].name}",
                              user_id)
                 return
-            respond = challenges[users[user_id].cur_challenge_id].show_rankings()
-            users_id = set(challenges[users[user_id].cur_challenge_id].finish(user_id))
             challenge_id = users[user_id].cur_challenge_id
+            respond = challenges[challenge_id].show_rankings()
+            users_id = set(challenges[challenge_id].users_id)
             print(len(users_id))
             for cur_id in users_id:
                 print(cur_id, len(users_id))
+                send_message(cur_id, f"{user_name} ended a '{users[cur_id].get_challenge_name(challenge_id)}'"
+                                     f" challenge. Here is a final rank list:\n" + respond, cur_id)
                 portfolio_changed = (users[cur_id].cur_challenge_id == challenge_id)
                 users[cur_id].quit_challenge(challenge_id)
-                bot.send_message(cur_id, f"{user_name} ended a '{cur_portfolio_name}' challenge."
-                                         f" Here is a final rank list:\n" + respond)
                 if portfolio_changed:
-                    bot.send_message(cur_id, f"Your portfolio automatically changed to "
-                                             f"'{users[cur_id].get_cur_portfolio_name()}' "
-                                             f"private portfolio.")
+                    send_message(cur_id, f"Your portfolio automatically changed to "
+                                         f"'{users[cur_id].get_cur_portfolio_name()}' "
+                                         f"private portfolio.", cur_id)
                 print(len(users_id))
             return
         if message.text == "Rename":
@@ -635,7 +680,7 @@ def get_text_messages(message):
             state[user_id].append(State().RENAME_CHALLENGE)
             send_message(chat_id, respond, user_id)
             return
-        if message.text == "Switch challenge":
+        if message.text in ["Switch challenge", "Switch to challenge"]:
             respond = f"Choose challenge to switch to from the list below:"
             state[user_id].append(State().SWITCH_CHALLENGE)
             send_message(chat_id, respond, user_id)
@@ -680,11 +725,14 @@ def get_text_messages(message):
         if name.find("(") != -1:
             send_message(chat_id, "Name of challenge cannot contain '(' character", user_id)
             return
+        if int(msg[-1]) == 0:
+            send_message(chat_id, "Zero is not enough! Come on! think bigger!", user_id)
+            return
         users[user_id].add_challenge(name, int(msg[-1]), "USD")
         respond = f"Successfully created a new " \
                   f"'{users[user_id].get_cur_portfolio_name()}' challenge" \
-                  f" with {msg[-1]} USD.\n Your current portfolio switched to the created one.\n" \
-                  f"One can join a challenge by sending the text from the next message to the bot:\n"
+                  f" with {int(msg[-1])} USD.\n Your current portfolio switched to the created one.\n" \
+                  f"One can join a challenge by sending the text from the following message to the bot:\n"
         print(challenges[users[user_id].cur_challenge_id].initial_money)
         state[user_id].pop()
         send_message(chat_id, respond, user_id)
@@ -705,4 +753,5 @@ while True:
     except requests.exceptions.ReadTimeout:
         save()
         print("========= NO INTERNET, BOT STOPPED SAFELY ==========")
+        print(challenges)
         break

@@ -30,6 +30,7 @@ def restore():
 
 
 def encode_challenges():
+    print(challenges)
     result = dict()
     for cur_id in challenges:
         result[cur_id] = challenges[cur_id].get_dict()
@@ -47,7 +48,7 @@ def decode_users(d):
     global users
     users.clear()
     for cur_id in d:
-        users[cur_id] = User("", 0)
+        users[cur_id] = User("", 0, restoring=True)
         users[cur_id].set_dict(d[cur_id])
 
 
@@ -57,6 +58,7 @@ def decode_challenges(d):
     for cur_id in d:
         challenges[cur_id] = Challenge([0], 0, 0, 0, 0)
         challenges[cur_id].set_dict(d[cur_id])
+    print(challenges)
 
 
 def get_id():
@@ -146,14 +148,10 @@ class Challenge:
             rank += 1
         return result
 
-    def finish(self, user_id):
-        assert (self.host == user_id)
-        self.finished = True
-        return self.users_id
-
     def add_user(self, user_id):
         if user_id in self.users_id:
             return False
+        print("added:", user_id)
         self.users_id.add(user_id)
         return True
 
@@ -165,11 +163,18 @@ class Challenge:
             self.finished = True
         elif self.host == user_id:
             self.host = next(iter(self.users_id))
+        if self.finished:
+            del challenges[self.id]
         return True
 
 
+def get_number(s):
+    s = s.split('(')[1]
+    return int(s[:len(s) - 1:])
+
+
 class User:
-    def __init__(self, name, user_id):
+    def __init__(self, name, user_id, restoring=False):
         global challenges
         self.portfolios = dict()
         self.currency = dict()
@@ -180,7 +185,8 @@ class User:
         self.id = user_id
         self.cur_challenge_id = 0
         self.invested = dict()
-        self.add_portfolio("main")
+        if not restoring:
+            self.add_portfolio("main")
         self.main_portfolio_id = self.cur_challenge_id
         users[user_id] = self
 
@@ -286,7 +292,6 @@ class User:
         self.cur_challenge_id = chall_id
 
     def rename_portfolio(self, new_name):
-        # TODO: create a good name handling
         name = self.challenge_name[self.cur_challenge_id].split("(")
         name[1] = name[1][:len(name[1]) - 1:]
         name[1] = int(name[1])
@@ -303,7 +308,9 @@ class User:
                 return ch_id
 
     def get_wealth(self, challenge_id, data):
-        cur_wealth = self.currency[challenge_id]["USD"]
+        cur_wealth = 0
+        if "USD" in self.currency[challenge_id]:
+            cur_wealth = self.currency[challenge_id]["USD"]
         for symbol in data:
             if symbol == 'error':
                 continue
@@ -394,12 +401,12 @@ class User:
         cur_currency = self.portfolios[self.cur_challenge_id][symbol].currency
         if cur_currency not in self.currency[self.cur_challenge_id]:
             self.currency[self.cur_challenge_id][cur_currency] = 0
+        self.currency[self.cur_challenge_id][cur_currency] += amount * price
         if self.portfolios[self.cur_challenge_id][symbol].amount == amount:
             del self.portfolios[self.cur_challenge_id][symbol]
             return True
         self.portfolios[self.cur_challenge_id][symbol].amount -= amount
         self.portfolios[self.cur_challenge_id][symbol].total_price -= amount * (cur_total_price / cur_amount)
-        self.currency[self.cur_challenge_id][cur_currency] += amount * price
         return True
 
     def sell_short(self, symbol, amount, price, currency):
@@ -413,7 +420,6 @@ class User:
         return True
 
     def buy_short(self, symbol, amount, price):
-        # TODO: fix, not working in challenge: does not change the amount somehow
         symbol = symbol.upper()
         if symbol not in self.shorted_stocks[self.cur_challenge_id] or self.shorted_stocks[self.cur_challenge_id][
             symbol].currency not in self.currency[self.cur_challenge_id]:
@@ -430,12 +436,12 @@ class User:
                 price - cur_total_price / cur_amount) < 0:
             return False
         print("there")
+        self.currency[self.cur_challenge_id][cur_currency] += amount * (price - cur_total_price / cur_amount)
         if self.shorted_stocks[self.cur_challenge_id][symbol].amount == amount:
             del self.shorted_stocks[self.cur_challenge_id][symbol]
             return True
         self.shorted_stocks[self.cur_challenge_id][symbol].amount -= amount
         self.shorted_stocks[self.cur_challenge_id][symbol].total_price -= amount * (cur_total_price / cur_amount)
-        self.currency[self.cur_challenge_id][cur_currency] += amount * (price - cur_total_price / cur_amount)
         return True
 
     def get_currency(self, symbol):
@@ -504,16 +510,35 @@ class User:
         self.challenge_name[challenge_id] = name + f"({name_counter})"
         self.taken_name_counters[name].add(name_counter)
 
+    def can_quit_challenge(self, challenge_id):
+        if challenge_id not in challenges or not challenges[challenge_id].is_private:
+            return True
+        cnt = 0
+        for chall_id in self.portfolios:
+            cnt += challenges[chall_id].is_private
+            if challenges[chall_id].is_private:
+                print(self.challenge_name[chall_id])
+        return cnt > 1
+
     def quit_challenge(self, challenge_id):
+        if not self.can_quit_challenge(challenge_id):
+            return
         challenges[challenge_id].remove_user(self.id)
         if challenge_id == self.cur_challenge_id:
+            if challenge_id == self.main_portfolio_id:
+                for chall_id in self.challenge_name:
+                    if chall_id != challenge_id and challenges[chall_id].is_private:
+                        self.main_portfolio_id = chall_id
+                        break
+            print("switched to ", self.main_portfolio_id)
             self.cur_challenge_id = self.main_portfolio_id
-        if challenges[challenge_id].finished:
-            del self.portfolios[challenge_id]
-            del self.challenge_name[challenge_id]
-            del self.currency[challenge_id]
-            del self.shorted_stocks[challenge_id]
-            del self.invested[challenge_id]
+        self.taken_name_counters[self.challenge_name[challenge_id].split('(')[0]].remove(
+            get_number(self.challenge_name[challenge_id]))
+        del self.portfolios[challenge_id]
+        del self.challenge_name[challenge_id]
+        del self.currency[challenge_id]
+        del self.shorted_stocks[challenge_id]
+        del self.invested[challenge_id]
 
 
 if __name__ == "__main__":

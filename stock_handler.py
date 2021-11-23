@@ -13,6 +13,19 @@ base_params = {
 }
 
 
+def get_best_matches(s):
+    print(s)
+    url = "https://alpha-vantage.p.rapidapi.com/query"
+    querystring = {"keywords": s, "function": "SYMBOL_SEARCH", "datatype": "json"}
+    headers = {
+        'x-rapidapi-host': "alpha-vantage.p.rapidapi.com",
+        'x-rapidapi-key': "e06451b9b4msh6de7f3ea5338f35p158178jsn47f40be3ab7f"
+    }
+    response = requests.request("GET", url, headers=headers, params=querystring)
+    print(response.text)
+    return json.loads(response.text)
+
+
 def get_type():
     global cur_type
     return cur_type
