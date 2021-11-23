@@ -23,7 +23,10 @@ def get_best_matches(s):
     }
     response = requests.request("GET", url, headers=headers, params=querystring)
     print(response.text)
-    return json.loads(response.text)
+    try:
+        return response.json()
+    except json.decoder.JSONDecodeError:
+        return {"message": "failed"}
 
 
 def get_type():

@@ -187,8 +187,8 @@ class User:
         self.invested = dict()
         if not restoring:
             self.add_portfolio("main")
+            users[user_id] = self
         self.main_portfolio_id = self.cur_challenge_id
-        users[user_id] = self
 
     def get_dict(self):
         portfolios = dict()
@@ -226,11 +226,11 @@ class User:
             for symbol in d["portfolios"][cur_id]:
                 self.portfolios[cur_id][symbol] = Share(0, 0, "USD")
                 self.portfolios[cur_id][symbol].set_dict(d["portfolios"][cur_id][symbol])
-        for cur_id in d["portfolios"]:
+        for cur_id in d["shorted_stocks"]:
             self.shorted_stocks[cur_id] = dict()
-            for symbol in d["portfolios"][cur_id]:
+            for symbol in d["shorted_stocks"][cur_id]:
                 self.shorted_stocks[cur_id][symbol] = Share(0, 0, "USD")
-                self.shorted_stocks[cur_id][symbol].set_dict(d["portfolios"][cur_id][symbol])
+                self.shorted_stocks[cur_id][symbol].set_dict(d["shorted_stocks"][cur_id][symbol])
         for name in d["taken_name_counters"]:
             self.taken_name_counters[name] = set(d["taken_name_counters"][name].values())
         # print(self.taken_name_counters)
@@ -422,7 +422,7 @@ class User:
     def buy_short(self, symbol, amount, price):
         symbol = symbol.upper()
         if symbol not in self.shorted_stocks[self.cur_challenge_id] or self.shorted_stocks[self.cur_challenge_id][
-            symbol].currency not in self.currency[self.cur_challenge_id]:
+           symbol].currency not in self.currency[self.cur_challenge_id]:
             if symbol not in self.shorted_stocks[self.cur_challenge_id]:
                 print("NO SUCH SYMBOL")
             else:
@@ -459,8 +459,8 @@ class User:
         print("amount:", self.shorted_stocks[self.cur_challenge_id][symbol].amount)
         print("delta: ", price, "-", self.shorted_stocks[self.cur_challenge_id][symbol].total_price /
               self.shorted_stocks[self.cur_challenge_id][symbol].amount)
-        return self.shorted_stocks[self.cur_challenge_id][symbol].total_price / \
-               self.shorted_stocks[self.cur_challenge_id][symbol].amount - price
+        return self.shorted_stocks[self.cur_challenge_id][symbol].total_price \
+            / self.shorted_stocks[self.cur_challenge_id][symbol].amount - price
 
     def can_afford(self, price, currency):
         print("in can afford", price)

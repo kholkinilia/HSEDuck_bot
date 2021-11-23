@@ -215,6 +215,14 @@ def get_text_messages(message):
     cur_portfolio_name = users[user_id].get_cur_portfolio_name()
     # is_group = (message.chat.type == "group")
     print(f"Message from {user_name} ({user_id}): '{message.text}'")
+    if message.text == "/shut_down":
+        if user_id == admin_id:
+            # TODO: he don't want to be shut down
+            save()
+            send_message(chat_id, "Kosar tak i ne otdali(((", user_id)
+            exit(0)
+        send_message(chat_id, "You are not the admin to sabotage the process. >:(", user_id)
+        return
     if message.text == "/switch_type":
         if user_id == admin_id:
             stock_handler.switch_type()
@@ -297,7 +305,6 @@ def get_text_messages(message):
     if state[user_id][-1] == State().PORTFOLIO:
         if message.text == "Delete portfolio":
             print(challenges)
-            respond = ""
             if not challenges[users[user_id].cur_challenge_id].is_private:
                 respond = f"You are in challenge portfolio. Please switch to private portfolio to delete it."
             elif users[user_id].can_quit_challenge(users[user_id].cur_challenge_id):
