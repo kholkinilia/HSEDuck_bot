@@ -144,7 +144,7 @@ class Challenge:
         medals = "X🥇🥈🥉"
         rank = 1
         for participant in rankings:
-            result += f"{medals[rank] if rank <= 3 else rank}| {'%.3f' % participant[0]} | {participant[1]}\n"
+            result += f"{medals[rank] if rank <= 3 else rank}| `{'%.3f' % participant[0]}` USD | {participant[1]}\n"
             rank += 1
         return result
 

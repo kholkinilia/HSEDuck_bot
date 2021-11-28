@@ -28,7 +28,7 @@ class State:
 
 
 # bot.send_message(chat_id, "Choose what you want to do: ", reply_markup=markup)
-use_buttons_message = "Please, use buttons to interact with the bot. If you don't see them, click on /show\_buttons."
+use_buttons_message = "Please, use buttons to interact with the bot. If you don't see them, click on /show\\_buttons."
 users = user_portfolio.users
 challenges = user_portfolio.challenges
 state = dict()
@@ -447,7 +447,7 @@ def get_text_messages(message):
             respond = f"==== Selling `{cur_message[1]}` ====\n" \
                       f"Selling with {cur_portfolio_type} portfolio: `{cur_portfolio_name}`.\n" \
                       f"You can sell: `{users[user_id].can_sell(cur_message[1])}`" \
-                      f" share{'s'if users[user_id].can_sell(cur_message[1]) > 1 else ''}.\n" \
+                      f" share{'s' if users[user_id].can_sell(cur_message[1]) > 1 else ''}.\n" \
                       f"Price: `{stock_handler.get_price(cur_message[1])}` USD.\n" \
                       f"Enter the amount to sell:"
             send_message(chat_id, respond, user_id)
@@ -546,7 +546,7 @@ def get_text_messages(message):
         respond = f"===== **{company_name}** =====\n" \
                   f"Symbol: `{cur_message[0]}`\n" \
                   f"Latest price: `{latest_price}` {currency}\n" \
-                  f"You can afford: `{can_afford}` share{'s'if can_afford > 1 else ''}\n" \
+                  f"You can afford: `{can_afford}` share{'s' if can_afford > 1 else ''}\n" \
                   f"You already have: `{users[user_id].can_sell(cur_message[0])}`"
         add_to_search_history(user_id, cur_message[0])
         send_message(chat_id, respond, user_id)
@@ -604,11 +604,12 @@ def get_text_messages(message):
             return
         price = stock_handler.get_price(selling_short[user_id])
         if amount > users[user_id].can_afford(price, "USD"):
-            send_message(chat_id, "You can't sell so much, because you **cannot afford 100% raise** of a stock.", user_id)
+            send_message(chat_id, "You can't sell so much, because you **cannot afford 100% raise** of a stock.",
+                         user_id)
             return
         users[user_id].sell_short(selling_short[user_id], amount, price, "USD")
-        respond = f"Successfully sold short `{amount}` share{'s' if amount > 1 else ''} of `{selling_short[user_id]}` " \
-                  f"for `{price}` USD per each."
+        respond = f"Successfully sold short `{amount}` share{'s' if amount > 1 else ''} of " \
+                  f"`{selling_short[user_id]}` for `{price}` USD per each."
         state[user_id].pop()
         send_message(chat_id, respond, user_id)
         return
@@ -631,8 +632,8 @@ def get_text_messages(message):
                                   f" shares, but tried to sell `{amount}`. Please enter a valid amount.", user_id)
             return
         users[user_id].buy_short(buying_short[user_id], amount, price)
-        respond = f"Successfully bought short `{amount}` share{'s' if amount > 1 else ''} of `{buying_short[user_id]}` " \
-                  f"for `{price}` {currency} per each."
+        respond = f"Successfully bought short `{amount}` share{'s' if amount > 1 else ''} of " \
+                  f"`{buying_short[user_id]}` for `{price}` {currency} per each."
         state[user_id].pop()
         send_message(chat_id, respond, user_id)
         return
@@ -641,7 +642,7 @@ def get_text_messages(message):
             send_message(chat_id,
                          f"One can enter the `{cur_portfolio_name}` challenge by sending to bot the following message:",
                          user_id)
-            send_message(chat_id, "join\_" + users[user_id].cur_challenge_id, user_id)
+            send_message(chat_id, "join\\_" + users[user_id].cur_challenge_id, user_id)
             return
         if message.text == "Show rankings":
             if users[user_id].in_private_portfolio():
@@ -746,7 +747,7 @@ def get_text_messages(message):
         print(challenges[users[user_id].cur_challenge_id].initial_money)
         state[user_id].pop()
         send_message(chat_id, respond, user_id)
-        send_message(chat_id, "join\_" + users[user_id].cur_challenge_id + "\n", user_id)
+        send_message(chat_id, "join\\_" + users[user_id].cur_challenge_id + "\n", user_id)
         return
     send_message(chat_id, use_buttons_message, user_id)
 
