@@ -330,36 +330,36 @@ class User:
         # TODO: make it work for multiple currencies
         cur_wealth = self.get_wealth(self.cur_challenge_id, data)
         cur_investment = self.invested[self.cur_challenge_id]
-        result = f">>>>>>>| '{self.get_cur_portfolio_name()}' portfolio of {self.name} |<<<<<<<\n"
-        result += f"total: {cur_investment} => {'%.3f' % cur_wealth} USD\n"
+        result = f">>>>>>>| `{self.get_cur_portfolio_name()}` portfolio of `{self.name}` |<<<<<<<\n"
+        result += f"total: `{cur_investment}` => `{'%.3f' % cur_wealth}` USD\n"
         if cur_investment:
-            result += f"prcnt: {'%.3f' % (100 * (cur_wealth - cur_investment) / cur_investment)}%\n"
+            result += f"prcnt: `{'%.3f' % (100 * (cur_wealth - cur_investment) / cur_investment)}`%\n"
         for currency in self.currency[self.cur_challenge_id]:
-            result += f"{currency}: {'%.3f' % self.currency[self.cur_challenge_id][currency]}\n"
+            result += f"{currency}: `{'%.3f' % self.currency[self.cur_challenge_id][currency]}`\n"
         for symbol in self.portfolios[self.cur_challenge_id]:
             cur_price = self.portfolios[self.cur_challenge_id][symbol].total_price
             cur_amount = self.portfolios[self.cur_challenge_id][symbol].amount
             avg_price = cur_price / cur_amount
             cur_currency = self.portfolios[self.cur_challenge_id][symbol].currency
-            result += f"--- /{symbol} --- \n"
-            result += f"amount: {cur_amount}\n"
+            result += f"--- `{symbol}` --- \n"
+            result += f"amount: `{cur_amount}`\n"
             real_price = float(data[symbol]["quote"]["latestPrice"])
-            result += f"price: {'%.3f' % avg_price} => {'%.3f' % real_price} {cur_currency}\n"
-            result += f"total price: {'%.3f' % cur_price} => {'%.3f' % (real_price * cur_amount)} {cur_currency}\n"
-            result += f"change: {'%.3f' % (real_price * cur_amount - cur_price)} {cur_currency}\n"
-            result += f"percent: {'%.3f' % (100 * (real_price * cur_amount - cur_price) / cur_price)}%\n"
+            result += f"price: `{'%.3f' % avg_price}` => `{'%.3f' % real_price}` {cur_currency}\n"
+            result += f"total price: `{'%.3f' % cur_price}` => `{'%.3f' % (real_price * cur_amount)}` {cur_currency}\n"
+            result += f"change: `{'%.3f' % (real_price * cur_amount - cur_price)}` {cur_currency}\n"
+            result += f"percent: `{'%.3f' % (100 * (real_price * cur_amount - cur_price) / cur_price)}`%\n"
         for symbol in self.shorted_stocks[self.cur_challenge_id]:
             cur_price = self.shorted_stocks[self.cur_challenge_id][symbol].total_price
             cur_amount = self.shorted_stocks[self.cur_challenge_id][symbol].amount
             avg_price = cur_price / cur_amount
             cur_currency = self.shorted_stocks[self.cur_challenge_id][symbol].currency
-            result += f"--- /{symbol} (shorted) --- \n"
-            result += f"amount: {cur_amount}\n"
+            result += f"--- `{symbol}` (shorted) --- \n"
+            result += f"amount: `{cur_amount}`\n"
             real_price = float(data[symbol]["quote"]["latestPrice"])
-            result += f"price: {'%.3f' % avg_price} => {'%.3f' % real_price} {cur_currency}\n"
-            result += f"total price: {'%.3f' % cur_price} => {'%.3f' % (real_price * cur_amount)} {cur_currency}\n"
-            result += f"change: {'%.3f' % -(real_price * cur_amount - cur_price)} {cur_currency}\n"
-            result += f"percent: {'%.3f' % -(100 * (real_price * cur_amount - cur_price) / cur_price)}%\n"
+            result += f"price: `{'%.3f' % avg_price}` => `{'%.3f' % real_price}` {cur_currency}\n"
+            result += f"total price: `{'%.3f' % cur_price}` => `{'%.3f' % (real_price * cur_amount)}` {cur_currency}\n"
+            result += f"change: `{'%.3f' % -(real_price * cur_amount - cur_price)}` {cur_currency}\n"
+            result += f"percent: `{'%.3f' % -(100 * (real_price * cur_amount - cur_price) / cur_price)}`%\n"
         return result
 
     def get_stock_list(self, challenge_id):
