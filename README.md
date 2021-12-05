@@ -18,7 +18,9 @@ the `stock_handler.py` file.
 Yep, that's bad, I know. However, my hands resist to rewrite almost every
 formula in `user_portfolio.py`. 
 ### You better not go broke:
-When the amount of money become negative, strange things happen. Fortunately, it's
+When the amount of money becomes negative, strange things happen. Fortunately, it's
 quite hard to get a negative amount of dollars in your portfolio,
-because of the 100% restriction on selling short. (you still can spend the money that guaranteed 
-you won't go broke and this is, actually, is quite the only way to go broke) So, be careful!
+because of the 100% restriction on selling short. (You still can spend money that guaranteed 
+you won't go broke. This is, actually, quite the only way to go broke) So, be careful!
+### English
+Sori for mai bad Englich :(
