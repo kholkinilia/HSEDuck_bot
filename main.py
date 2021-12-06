@@ -129,13 +129,13 @@ def get_home_markup():
 def get_portfolio_markup(user_id):
     markup = types.ReplyKeyboardMarkup()
     if users[user_id].in_private_portfolio():
-        markup.row("Show portfolio", "Get statistics")
-        markup.row("Rename", "💵Add money")
-        markup.row("Switch portfolio", "Delete portfolio", "Create portfolio")
+        markup.row("💰Show portfolio", "📊Get statistics")
+        markup.row("📁Rename", "💵Add money")
+        markup.row("🔀Switch portfolio", "❎Delete portfolio", "➕Create portfolio")
         markup.row("◀Back", "🏠Return home")
     else:
-        markup.row("Show portfolio", "Get statistics")
-        markup.row("Switch to private portfolio", "Create portfolio")
+        markup.row("💰Show portfolio", "📊Get statistics")
+        markup.row("🔀Switch to private portfolio", "➕Create portfolio")
         markup.row("◀Back", "🏠Return home")
     return markup
 
@@ -154,12 +154,12 @@ def get_search_markup(user_id):
 def get_challenge_markup(user_id):
     markup = types.ReplyKeyboardMarkup()
     if not users[user_id].in_private_portfolio():
-        markup.row("Show rankings")
-        markup.row("Quit", "End challenge", "Rename", "Join message")
-        markup.row("Switch challenge", "Create challenge")
+        markup.row("🏆Show rankings")
+        markup.row("⛔Quit", "🔚End challenge", "📁Rename", "🛑Join message")
+        markup.row("🔀Switch challenge", "➕Create challenge")
         markup.row("◀Back", "🏠Return home")
     else:
-        markup.row("Switch to challenge", "Create challenge")
+        markup.row("🔀Switch to challenge", "➕Create challenge")
         markup.row("◀Back", "🏠Return home")
     return markup
 
@@ -298,7 +298,7 @@ def get_text_messages(message):
             send_message(chat_id, respond, user_id)
             return
     if state[user_id][-1] == State().PORTFOLIO:
-        if message.text == "Delete portfolio":
+        if message.text == "❎Delete portfolio":
             if not challenges[users[user_id].cur_challenge_id].is_private:
                 respond = f"You are in **challenge** portfolio. Please switch to private portfolio to delete it."
             elif users[user_id].can_quit_challenge(users[user_id].cur_challenge_id):
@@ -311,15 +311,15 @@ def get_text_messages(message):
                           f" To delete this portfolio consider creating a new one."
             send_message(chat_id, respond, user_id)
             return
-        if message.text == "Show portfolio":
+        if message.text == "💰Show portfolio":
             respond = users[user_id].show_portfolio()
             send_message(chat_id, respond, user_id)
             return
-        if message.text == "Get statistics":
+        if message.text == "📊Get statistics":
             respond = users[user_id].get_statistics()
             send_message(chat_id, respond, user_id)
             return
-        if message.text == "Rename":
+        if message.text == "📁Rename":
             respond = "Enter a new name of current portfolio. New name **cannot** contain `(` character:"
             state[user_id].append(State().RENAME_PORTFOLIO)
             send_message(chat_id, respond, user_id)
@@ -332,12 +332,12 @@ def get_text_messages(message):
             state[user_id].append(State().ADD_MONEY)
             send_message(chat_id, respond, user_id)
             return
-        if message.text in ["Switch portfolio", "Switch to private portfolio"]:
+        if message.text in ["🔀Switch portfolio", "🔀Switch to private portfolio"]:
             respond = "Choose portfolio to switch to from the list:"
             state[user_id].append(State().SWITCH_PORTFOLIO)
             send_message(chat_id, respond, user_id)
             return
-        if message.text == "Create portfolio":
+        if message.text == "➕Create portfolio":
             respond = "Enter a name of a new private portfolio (a name **cannot** contain `(` character)" \
                       " and an initial amount of money in it:\nExample: `Stump 1000`"
             state[user_id].append(State().CREATE_PORTFOLIO)
@@ -626,13 +626,13 @@ def get_text_messages(message):
         send_message(chat_id, respond, user_id)
         return
     if state[user_id][-1] == State.CHALLENGE:
-        if message.text == "Join message":
+        if message.text == "🛑Join message":
             send_message(chat_id,
                          f"One can enter the `{cur_portfolio_name}` challenge by sending to bot the following message:",
                          user_id)
             send_message(chat_id, "join\\_" + users[user_id].cur_challenge_id, user_id)
             return
-        if message.text == "Show rankings":
+        if message.text == "🏆Show rankings":
             if users[user_id].in_private_portfolio():
                 send_message(chat_id, "You are now in **private** portfolio. "
                                       "Please switch to a challenge portfolio to see rankings.", user_id)
@@ -641,7 +641,7 @@ def get_text_messages(message):
                       f" ======\n" + challenges[users[user_id].cur_challenge_id].show_rankings()
             send_message(chat_id, respond, user_id)
             return
-        if message.text == "Quit":
+        if message.text == "⛔Quit":
             if users[user_id].in_private_portfolio():
                 send_message(chat_id, "You are now in private portfolio. You can't quit it.", user_id)
                 return
@@ -649,7 +649,7 @@ def get_text_messages(message):
             respond = f"Successfully quit `{cur_portfolio_name}` {cur_portfolio_type} portfolio"
             send_message(chat_id, respond, user_id)
             return
-        if message.text == "End challenge":
+        if message.text == "🔚End challenge":
             if users[user_id].in_private_portfolio():
                 send_message(chat_id, "You are now in private portfolio. You can't end it.", user_id)
                 return
@@ -671,17 +671,17 @@ def get_text_messages(message):
                                          f"`{users[cur_id].get_cur_portfolio_name()}` "
                                          f"private portfolio.", cur_id)
             return
-        if message.text == "Rename":
+        if message.text == "📁Rename":
             respond = f"Enter a new name of current challenge. Current challenge is `{cur_portfolio_name}`."
             state[user_id].append(State().RENAME_CHALLENGE)
             send_message(chat_id, respond, user_id)
             return
-        if message.text in ["Switch challenge", "Switch to challenge"]:
+        if message.text in ["🔀Switch challenge", "🔀Switch to challenge"]:
             respond = f"Choose challenge to switch to from the list below:"
             state[user_id].append(State().SWITCH_CHALLENGE)
             send_message(chat_id, respond, user_id)
             return
-        if message.text == "Create challenge":
+        if message.text == "➕Create challenge":
             respond = "Enter a name of a new challenge (a name cannot contain `(` character)" \
                       " and an initial amount of money for every participant in it:" \
                       "\nExample: `Homeless challenge 1`"
@@ -750,3 +750,6 @@ while True:
         print("========= NO INTERNET, BOT STOPPED SAFELY ==========")
         print(challenges)
         break
+    finally:
+        bot.send_message(admin_id, "Some error occurred, please check!")
+        save()
