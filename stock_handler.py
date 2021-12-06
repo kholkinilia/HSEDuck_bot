@@ -24,7 +24,7 @@ def get_best_matches(s):
     # print("RESPONSE: ", response.text)
     try:
         return response.json()
-    except json.decoder.JSONDecodeError:
+    except ValueError:
         return {"message": "failed"}
 
 
@@ -51,7 +51,7 @@ def get_multiple_quote(symbols):
     # print("RESP: ", result.text)
     try:
         return result.json()
-    except json.decoder.JSONDecodeError:
+    except ValueError:
         return {}
 
 
@@ -73,7 +73,7 @@ def get_quote(symbol):
     # print("RESP: ", result.text)
     try:
         return result.json()
-    except json.decoder.JSONDecodeError:
+    except ValueError:
         return {}
 
 
