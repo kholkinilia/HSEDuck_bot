@@ -55,16 +55,11 @@ def restore():
         set_dict(json.loads(f.readline()))
         f.close()
         user_portfolio.restore()
-        print(challenges)
         print("Restored last save successfully")
     except FileNotFoundError:
         print("Nothing to restore")
-    # print(id(users))
-    # print(id(user_portfolio.users))
     users = user_portfolio.users
     challenges = user_portfolio.challenges
-    print(challenges)
-    # print(id(users) == id(user_portfolio.users))
 
 
 def get_dict():
@@ -188,7 +183,7 @@ def get_switch_challenge_markup(user_id):
 
 
 def send_message(chat_id, message, user_id):
-    print("SENDING:", message)
+    # print("SENDING:", message)
     bot.send_message(chat_id, message, reply_markup=get_markup(user_id), parse_mode="Markdown")
 
 
@@ -197,7 +192,6 @@ admin_id = "476183318"
 
 @bot.message_handler(content_types=["text"])
 def get_text_messages(message):
-    print(challenges)
     global admin_id
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name
@@ -215,7 +209,7 @@ def get_text_messages(message):
     cur_portfolio_type = "private" if users[user_id].in_private_portfolio() else "challenge"
     cur_portfolio_name = users[user_id].get_cur_portfolio_name()
     # is_group = (message.chat.type == "group")
-    print(f"Message from {user_name} ({user_id}): '{message.text}'")
+    # print(f"Message from {user_name} ({user_id}): '{message.text}'")
     if message.text == "/shut_down":
         if user_id == admin_id:
             # TODO: he don't want to be shut down
@@ -305,7 +299,6 @@ def get_text_messages(message):
             return
     if state[user_id][-1] == State().PORTFOLIO:
         if message.text == "Delete portfolio":
-            print(challenges)
             if not challenges[users[user_id].cur_challenge_id].is_private:
                 respond = f"You are in **challenge** portfolio. Please switch to private portfolio to delete it."
             elif users[user_id].can_quit_challenge(users[user_id].cur_challenge_id):
@@ -384,7 +377,6 @@ def get_text_messages(message):
     if state[user_id][-1] == State.CREATE_PORTFOLIO:
         msg = message.text.strip().split()
         name = ""
-        print(msg)
         for i in range(len(msg) - 1):
             name += msg[i] + (" " if i != len(msg) - 2 else "")
         if name == "" or not msg[-1].isdigit():
@@ -507,7 +499,6 @@ def get_text_messages(message):
             respond = f"Sorry, we don't know that symbol. :(\n"
             matches = stock_handler.get_best_matches(message.text.strip())
             cnt = 1
-            print(matches)
             if "bestMatches" in matches:
                 for stock in matches["bestMatches"]:
                     if stock["4. region"] == "United States":
@@ -536,7 +527,6 @@ def get_text_messages(message):
             currency = data["currency"]
         except KeyError:
             pass
-        print(data)
         if latest_price == "unknown" or currency != "USD":
             send_message(chat_id, "The company is bankrupt.", user_id)
             return
@@ -622,10 +612,8 @@ def get_text_messages(message):
             send_message(chat_id, "That is a strange amount to buy. o_o", user_id)
             return
         price = stock_handler.get_price(buying_short[user_id])
-        print(buying_short[user_id], price)
         delta = users[user_id].get_delta_short(buying_short[user_id], price)
         currency = users[user_id].get_currency(buying_short[user_id])
-        print("can_buy: ", users[user_id].can_buy_short(buying_short[user_id], delta, currency))
         if amount > users[user_id].can_buy_short(buying_short[user_id], delta, currency):
             send_message(chat_id, f"You can buy short only "
                                   f"`{users[user_id].can_buy_short(buying_short[user_id], delta, currency)}`"
@@ -673,9 +661,7 @@ def get_text_messages(message):
             challenge_id = users[user_id].cur_challenge_id
             respond = challenges[challenge_id].show_rankings()
             users_id = set(challenges[challenge_id].users_id)
-            print(len(users_id))
             for cur_id in users_id:
-                print(cur_id, len(users_id))
                 send_message(cur_id, f"`{user_name}` ended the `{users[cur_id].get_challenge_name(challenge_id)}`"
                                      f" challenge. Here is the final rank list:\n" + respond, cur_id)
                 portfolio_changed = (users[cur_id].cur_challenge_id == challenge_id)
@@ -684,7 +670,6 @@ def get_text_messages(message):
                     send_message(cur_id, f"Your portfolio automatically changed to "
                                          f"`{users[cur_id].get_cur_portfolio_name()}` "
                                          f"private portfolio.", cur_id)
-                print(len(users_id))
             return
         if message.text == "Rename":
             respond = f"Enter a new name of current challenge. Current challenge is `{cur_portfolio_name}`."
@@ -744,7 +729,6 @@ def get_text_messages(message):
                   f"`{users[user_id].get_cur_portfolio_name()}` challenge" \
                   f" with `{int(msg[-1])}` USD.\n Your current portfolio switched to the created one.\n" \
                   f"One can **join** the challenge by sending the text from the following message to the bot:\n"
-        print(challenges[users[user_id].cur_challenge_id].initial_money)
         state[user_id].pop()
         send_message(chat_id, respond, user_id)
         send_message(chat_id, "join\\_" + users[user_id].cur_challenge_id + "\n", user_id)

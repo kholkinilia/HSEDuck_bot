@@ -5,7 +5,8 @@ base_urls = ["https://cloud.iexapis.com", "https://sandbox.iexapis.com"]
 tokens = []
 f = open("config.txt", "r")
 for i in range(3):
-    tokens.append(f.readline())
+    cur_token = f.readline()
+    tokens.append(cur_token[:len(cur_token) - 1:])
 
 cur_type = 1
 base_url = base_urls[cur_type]
@@ -17,15 +18,10 @@ base_params = {
 
 
 def get_best_matches(s):
-    print(s)
-    url = "https://alpha-vantage.p.rapidapi.com/query"
-    querystring = {"keywords": s, "function": "SYMBOL_SEARCH", "datatype": "json"}
-    headers = {
-        'x-rapidapi-host': "alpha-vantage.p.rapidapi.com",
-        'x-rapidapi-key' : tokens[3]
-    }
-    response = requests.request("GET", url, headers=headers, params=querystring, verify=False)
-    print(response.text)
+    url = "https://www.alphavantage.co/query"
+    querystring = {"keywords": s, "function": "SYMBOL_SEARCH", "datatype": "json", "apikey": token[2]}
+    response = requests.get(url, params=querystring)
+    # print("RESPONSE: ", response.text)
     try:
         return response.json()
     except json.decoder.JSONDecodeError:
@@ -51,7 +47,8 @@ def get_multiple_quote(symbols):
     params["types"] = "quote"
     symbols_param = ','.join(symbols)
     url = f"{base_url}/{version}/stock/market/batch?types=quote&token={token}&symbols={symbols_param}"
-    result = requests.get(url, verify=False)
+    result = requests.get(url)
+    # print("RESP: ", result.text)
     try:
         return result.json()
     except json.decoder.JSONDecodeError:
@@ -61,20 +58,19 @@ def get_multiple_quote(symbols):
 def get_price(symbol):
     params = base_params
     params["chartIEXOnly"] = "True"
-    result = requests.get(f"{base_url}/{version}/stock/{symbol}/quote/latestPrice", params=params, verify=False)
-    print(result.text)
+    result = requests.get(f"{base_url}/{version}/stock/{symbol}/quote/latestPrice", params=params)
+    # print("RESP: ", result.text)
     try:
         return float(result.text)
     except ValueError:
-        # TODO: check if it actually is a ValueError
         return -1
 
 
 def get_quote(symbol):
     params = base_params
     params["chartIEXOnly"] = "True"
-    result = requests.get(f"{base_url}/{version}/stock/{symbol}/quote/", params=params)
-    print(result.text)
+    result = requests.get(f"{base_url}/{version}/stock/{symbol}/quote", params=params)
+    # print("RESP: ", result.text)
     try:
         return result.json()
     except json.decoder.JSONDecodeError:
@@ -91,4 +87,4 @@ if __name__ == "__main__":
     #     print(f"========== {key} ==========")
     #     for value in data[key]:
     #         print(f"{value}: {data[key]}")
-    req = requests.get("https://google.com")
+    json = get_best_matches("Microsoft")

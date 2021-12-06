@@ -30,7 +30,6 @@ def restore():
 
 
 def encode_challenges():
-    print(challenges)
     result = dict()
     for cur_id in challenges:
         result[cur_id] = challenges[cur_id].get_dict()
@@ -58,7 +57,6 @@ def decode_challenges(d):
     for cur_id in d:
         challenges[cur_id] = Challenge([0], 0, 0, 0, 0)
         challenges[cur_id].set_dict(d[cur_id])
-    print(challenges)
 
 
 def get_id():
@@ -151,7 +149,6 @@ class Challenge:
     def add_user(self, user_id):
         if user_id in self.users_id:
             return False
-        print("added:", user_id)
         self.users_id.add(user_id)
         return True
 
@@ -233,7 +230,6 @@ class User:
                 self.shorted_stocks[cur_id][symbol].set_dict(d["shorted_stocks"][cur_id][symbol])
         for name in d["taken_name_counters"]:
             self.taken_name_counters[name] = set(d["taken_name_counters"][name].values())
-        # print(self.taken_name_counters)
         self.currency = d["currency"]
         self.challenge_name = d["challenge_name"]
         self.name = d["name"]
@@ -326,7 +322,6 @@ class User:
         if not self.portfolios[self.cur_challenge_id] and not self.currency[self.cur_challenge_id]:
             return "You don't have any shares or currency yet."
         data = stock_handler.get_multiple_quote(self.get_stock_list(self.cur_challenge_id))
-        print(data, self.get_stock_list(self.cur_challenge_id))
         # TODO: make it work for multiple currencies
         cur_wealth = self.get_wealth(self.cur_challenge_id, data)
         cur_investment = self.invested[self.cur_challenge_id]
@@ -423,19 +418,13 @@ class User:
         symbol = symbol.upper()
         if symbol not in self.shorted_stocks[self.cur_challenge_id] or self.shorted_stocks[self.cur_challenge_id][
            symbol].currency not in self.currency[self.cur_challenge_id]:
-            if symbol not in self.shorted_stocks[self.cur_challenge_id]:
-                print("NO SUCH SYMBOL")
-            else:
-                print("NO SUCH CURRENCY")
             return False
-        print("here")
         cur_total_price = self.shorted_stocks[self.cur_challenge_id][symbol].total_price
         cur_amount = self.shorted_stocks[self.cur_challenge_id][symbol].amount
         cur_currency = self.shorted_stocks[self.cur_challenge_id][symbol].currency
         if self.currency[self.cur_challenge_id][cur_currency] + amount * (
                 price - cur_total_price / cur_amount) < 0:
             return False
-        print("there")
         self.currency[self.cur_challenge_id][cur_currency] += amount * (price - cur_total_price / cur_amount)
         if self.shorted_stocks[self.cur_challenge_id][symbol].amount == amount:
             del self.shorted_stocks[self.cur_challenge_id][symbol]
@@ -453,17 +442,11 @@ class User:
 
     def get_delta_short(self, symbol, price):
         if symbol not in self.shorted_stocks[self.cur_challenge_id]:
-            print("zero")
             return 0
-        print("total:", self.shorted_stocks[self.cur_challenge_id][symbol].total_price)
-        print("amount:", self.shorted_stocks[self.cur_challenge_id][symbol].amount)
-        print("delta: ", price, "-", self.shorted_stocks[self.cur_challenge_id][symbol].total_price /
-              self.shorted_stocks[self.cur_challenge_id][symbol].amount)
         return self.shorted_stocks[self.cur_challenge_id][symbol].total_price \
             / self.shorted_stocks[self.cur_challenge_id][symbol].amount - price
 
     def can_afford(self, price, currency):
-        print("in can afford", price)
         if currency not in self.currency[self.cur_challenge_id]:
             return 0
         return int(self.currency[self.cur_challenge_id][currency] / price)
@@ -476,7 +459,6 @@ class User:
     def can_buy_short(self, symbol, price_delta, currency):
         if symbol not in self.shorted_stocks[self.cur_challenge_id]:
             return 0
-        print("DELTA:", price_delta)
         if price_delta >= 0:
             return self.shorted_stocks[self.cur_challenge_id][symbol].amount
         return min(self.can_afford(-price_delta, currency), self.shorted_stocks[self.cur_challenge_id][symbol].amount)
@@ -516,8 +498,6 @@ class User:
         cnt = 0
         for chall_id in self.portfolios:
             cnt += challenges[chall_id].is_private
-            if challenges[chall_id].is_private:
-                print(self.challenge_name[chall_id])
         return cnt > 1
 
     def quit_challenge(self, challenge_id):
@@ -530,7 +510,6 @@ class User:
                     if chall_id != challenge_id and challenges[chall_id].is_private:
                         self.main_portfolio_id = chall_id
                         break
-            print("switched to ", self.main_portfolio_id)
             self.cur_challenge_id = self.main_portfolio_id
         self.taken_name_counters[self.challenge_name[challenge_id].split('(')[0]].remove(
             get_number(self.challenge_name[challenge_id]))
