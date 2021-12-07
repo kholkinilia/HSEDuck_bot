@@ -184,7 +184,11 @@ def get_switch_challenge_markup(user_id):
 
 def send_message(chat_id, message, user_id):
     # print("SENDING:", message)
-    bot.send_message(chat_id, message, reply_markup=get_markup(user_id), parse_mode="Markdown")
+    try:
+        val = bot.send_message(chat_id, message, reply_markup=get_markup(user_id), parse_mode="Markdown")
+    except:
+        # if message does not fit to the parse_mode above
+        bot.send_message(chat_id, message, reply_markup=get_markup(user_id))
 
 
 admin_id = "476183318"
@@ -192,7 +196,7 @@ admin_id = "476183318"
 
 @bot.message_handler(content_types=["text"])
 def get_text_messages(message):
-    global admin_id
+    global admin_id, log_file
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name
     chat_id = message.chat.id
@@ -210,6 +214,7 @@ def get_text_messages(message):
     cur_portfolio_name = users[user_id].get_cur_portfolio_name()
     # is_group = (message.chat.type == "group")
     # print(f"Message from {user_name} ({user_id}): '{message.text}'")
+    log_file.write(f"Message from {user_name} ({user_id}): '{message.text}'\n")
     if message.text == "/shut_down":
         if user_id == admin_id:
             # TODO: he don't want to be shut down
@@ -302,10 +307,10 @@ def get_text_messages(message):
             if not challenges[users[user_id].cur_challenge_id].is_private:
                 respond = f"You are in **challenge** portfolio. Please switch to private portfolio to delete it."
             elif users[user_id].can_quit_challenge(users[user_id].cur_challenge_id):
+                users[user_id].quit_challenge(users[user_id].cur_challenge_id)
                 respond = f"Successfully deleted `{cur_portfolio_name}` {cur_portfolio_type} portfolio.\n" \
                           f"Your portfolio is automatically set to " \
                           f"`{users[user_id].get_challenge_name(users[user_id].cur_challenge_id)}`."
-                users[user_id].quit_challenge(users[user_id].cur_challenge_id)
             else:
                 respond = f"You can't delete the only private portfolio of yours." \
                           f" To delete this portfolio consider creating a new one."
@@ -504,6 +509,7 @@ def get_text_messages(message):
                     if stock["4. region"] == "United States":
                         if cnt == 1:
                             respond += f"Here are the best matches for your request:\n"
+                        stock['2. name'] = stock['2. name'].replace('`', "'")
                         respond += f"**=== {cnt} ===** \n" \
                                    f"Company name: {stock['2. name']}.\n" \
                                    f"Symbol: `{stock['1. symbol']}`\n"
@@ -738,18 +744,22 @@ def get_text_messages(message):
 
 telebot.apihelper.SESSION_TIME_TO_LIVE = 5 * 60
 
+counter = 0
+
 while True:
+    file = open("last_counter.txt", "r")
+    counter = int(file.readline().strip()) + 1
+    file = open("last_counter.txt", "w")
+    file.write(str(counter))
+    file.close()
+    print(f"NEW LOG CREATED: 'log{counter}.txt'")
+    log_file = open(f"log{counter}.txt", "a", encoding="UTF-8")
     try:
         restore()
         bot.polling(none_stop=True, interval=0)
-    except requests.exceptions.ConnectTimeout:
-        save()
+    except [requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout]:
         print("========= CONNECTION TROUBLES, TRYING TO RERUN! ==========")
-    except requests.exceptions.ReadTimeout:
-        save()
-        print("========= NO INTERNET, BOT STOPPED SAFELY ==========")
-        print(challenges)
-        break
     finally:
+        log_file.close()
         bot.send_message(admin_id, "Some error occurred, please check!")
         save()

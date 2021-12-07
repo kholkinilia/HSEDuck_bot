@@ -328,7 +328,7 @@ class User:
         result = f">>>>>>>| `{self.get_cur_portfolio_name()}` portfolio of `{self.name}` |<<<<<<<\n"
         result += f"total: `{cur_investment}` => `{'%.3f' % cur_wealth}` USD\n"
         if cur_investment:
-            result += f"prcnt: `{'%.3f' % (100 * (cur_wealth - cur_investment) / cur_investment)}`%\n"
+            result += f"profit: `{'%.3f' % (100 * (cur_wealth - cur_investment) / cur_investment)}`%\n"
         for currency in self.currency[self.cur_challenge_id]:
             result += f"{currency}: `{'%.3f' % self.currency[self.cur_challenge_id][currency]}`\n"
         for symbol in self.portfolios[self.cur_challenge_id]:
@@ -342,7 +342,7 @@ class User:
             result += f"price: `{'%.3f' % avg_price}` => `{'%.3f' % real_price}` {cur_currency}\n"
             result += f"total price: `{'%.3f' % cur_price}` => `{'%.3f' % (real_price * cur_amount)}` {cur_currency}\n"
             result += f"change: `{'%.3f' % (real_price * cur_amount - cur_price)}` {cur_currency}\n"
-            result += f"percent: `{'%.3f' % (100 * (real_price * cur_amount - cur_price) / cur_price)}`%\n"
+            result += f"profit: `{'%.3f' % (100 * (real_price * cur_amount - cur_price) / cur_price)}`%\n"
         for symbol in self.shorted_stocks[self.cur_challenge_id]:
             cur_price = self.shorted_stocks[self.cur_challenge_id][symbol].total_price
             cur_amount = self.shorted_stocks[self.cur_challenge_id][symbol].amount
@@ -354,7 +354,7 @@ class User:
             result += f"price: `{'%.3f' % avg_price}` => `{'%.3f' % real_price}` {cur_currency}\n"
             result += f"total price: `{'%.3f' % cur_price}` => `{'%.3f' % (real_price * cur_amount)}` {cur_currency}\n"
             result += f"change: `{'%.3f' % -(real_price * cur_amount - cur_price)}` {cur_currency}\n"
-            result += f"percent: `{'%.3f' % -(100 * (real_price * cur_amount - cur_price) / cur_price)}`%\n"
+            result += f"profit: `{'%.3f' % -(100 * (real_price * cur_amount - cur_price) / cur_price)}`%\n"
         return result
 
     def get_stock_list(self, challenge_id):
@@ -422,10 +422,10 @@ class User:
         cur_total_price = self.shorted_stocks[self.cur_challenge_id][symbol].total_price
         cur_amount = self.shorted_stocks[self.cur_challenge_id][symbol].amount
         cur_currency = self.shorted_stocks[self.cur_challenge_id][symbol].currency
-        if self.currency[self.cur_challenge_id][cur_currency] + amount * (
+        if self.currency[self.cur_challenge_id][cur_currency] - amount * (
                 price - cur_total_price / cur_amount) < 0:
             return False
-        self.currency[self.cur_challenge_id][cur_currency] += amount * (price - cur_total_price / cur_amount)
+        self.currency[self.cur_challenge_id][cur_currency] -= amount * (price - cur_total_price / cur_amount)
         if self.shorted_stocks[self.cur_challenge_id][symbol].amount == amount:
             del self.shorted_stocks[self.cur_challenge_id][symbol]
             return True

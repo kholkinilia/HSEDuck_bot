@@ -5,8 +5,7 @@ base_urls = ["https://cloud.iexapis.com", "https://sandbox.iexapis.com"]
 tokens = []
 f = open("config.txt", "r")
 for i in range(3):
-    cur_token = f.readline()
-    tokens.append(cur_token[:len(cur_token) - 1:])
+    tokens.append(f.readline().strip())
 
 cur_type = 1
 base_url = base_urls[cur_type]
