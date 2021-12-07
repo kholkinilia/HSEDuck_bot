@@ -22,5 +22,7 @@ When the amount of money becomes negative, strange things happen. Fortunately, i
 quite hard to get a negative amount of dollars in your portfolio,
 because of the 100% restriction on selling short. (You still can spend money that guaranteed 
 you won't go broke. This is, actually, quite the only way to go broke) So, be careful!
-### English
+### English:
 Sori for mai bad Englich :(
+### To hackers:
+I replaced API tokens with others, so you can't use them (don't worry, they were free).
