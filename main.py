@@ -6,7 +6,9 @@ import user_portfolio
 import json
 from telebot import types
 
-bot = telebot.TeleBot("2075815152:AAGrkae06TYfdCLIglo8fyLOzth1Byvq6JU")
+f = open("config.txt", "r")
+bot = telebot.TeleBot(f.readlines()[3].strip())
+f.close()
 
 
 class State:
