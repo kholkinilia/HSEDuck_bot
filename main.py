@@ -217,6 +217,7 @@ def get_text_messages(message):
     # is_group = (message.chat.type == "group")
     # print(f"Message from {user_name} ({user_id}): '{message.text}'")
     log_file.write(f"Message from {user_name} ({user_id}): '{message.text}'\n")
+    log_file.flush()
     if message.text == "/shut_down":
         if user_id == admin_id:
             # TODO: he don't want to be shut down
