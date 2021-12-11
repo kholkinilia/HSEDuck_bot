@@ -506,21 +506,28 @@ def get_text_messages(message):
         if not data:
             respond = f"Sorry, we don't know that symbol. :(\n"
             matches = stock_handler.get_best_matches(message.text.strip())
-            cnt = 1
+            cnt = 0
             if "bestMatches" in matches:
                 for stock in matches["bestMatches"]:
                     if stock["4. region"] == "United States":
-                        if cnt == 1:
+                        if cnt == 0:
                             respond += f"Here are the best matches for your request:\n"
                         stock['2. name'] = stock['2. name'].replace('`', "'")
                         respond += f"**=== {cnt} ===** \n" \
                                    f"Company name: {stock['2. name']}.\n" \
                                    f"Symbol: `{stock['1. symbol']}`\n"
                         cnt += 1
-            if cnt == 1:
+            if cnt == 0:
                 respond += "Please try another one."
-            send_message(chat_id, respond, user_id)
-            return
+                send_message(chat_id, respond, user_id)
+                return
+            if cnt != 1:
+                send_message(chat_id, respond, user_id)
+                return
+            for stock in matches["bestMatches"]:
+                if stock["4. region"] == "United States":
+                    data = stock_handler.get_quote(stock['1. symbol'])
+                    cur_message[0] = stock['1. symbol']
         company_name = cur_message[0]
         try:
             company_name = data["companyName"]
