@@ -5,11 +5,10 @@ from user_portfolio import User
 import user_portfolio
 import json
 from telebot import types
+import os
+import utility
 
-f = open("config.txt", "r")
-bot = telebot.TeleBot(f.readlines()[3].strip())
-f.close()
-
+bot = telebot.TeleBot(os.environ["HSEDUCK_BOT_TELEGRAM_TOKEN"])
 
 class State:
     HOME = 0
@@ -44,8 +43,8 @@ HISTORY_SIZE = 4
 
 
 def save():
-    user_portfolio.save()
-    f = open("main_stuff.json", "w")
+    user_portfolio.save(utility.STORAGE_DIR)
+    f = open(os.path.join(utility.STORAGE_DIR, "main_stuff.json"), "w")
     f.write(json.dumps(get_dict()))
     f.close()
 
@@ -53,10 +52,10 @@ def save():
 def restore():
     global users, challenges
     try:
-        f = open("main_stuff.json", "r")
+        f = open(os.path.join(utility.STORAGE_DIR, "main_stuff.json"), "r")
         set_dict(json.loads(f.readline()))
         f.close()
-        user_portfolio.restore()
+        user_portfolio.restore(utility.STORAGE_DIR)
         print("Restored last save successfully")
     except FileNotFoundError:
         print("Nothing to restore")
@@ -193,12 +192,12 @@ def send_message(chat_id, message, user_id):
         bot.send_message(chat_id, message, reply_markup=get_markup(user_id))
 
 
-admin_id = "476183318"
+admin_id = os.environ["HSEDUCK_BOT_ADMIN_ID"]
 
 
 @bot.message_handler(content_types=["text"])
 def get_text_messages(message):
-    global admin_id, log_file
+    global admin_id  # , log_file
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name
     chat_id = message.chat.id
@@ -216,8 +215,8 @@ def get_text_messages(message):
     cur_portfolio_name = users[user_id].get_cur_portfolio_name()
     # is_group = (message.chat.type == "group")
     # print(f"Message from {user_name} ({user_id}): '{message.text}'")
-    log_file.write(f"Message from {user_name} ({user_id}): '{message.text}'\n")
-    log_file.flush()
+    # log_file.write(f"Message from {user_name} ({user_id}): '{message.text}'\n")
+    # log_file.flush()
     if message.text == "/shut_down":
         if user_id == admin_id:
             # TODO: he don't want to be shut down
@@ -228,8 +227,8 @@ def get_text_messages(message):
         return
     if message.text == "/switch_type":
         if user_id == admin_id:
-            stock_handler.switch_type()
-            send_message(chat_id, f"You switched to *{'sandbox' if stock_handler.get_type() else 'real'}* information.",
+            stock_handler.switch_mode()
+            send_message(chat_id, f"You switched to *{stock_handler.get_mode()}* mode.",
                          user_id)
         else:
             send_message(chat_id, f"You are not allowed to do this :(", user_id)
@@ -757,19 +756,19 @@ telebot.apihelper.SESSION_TIME_TO_LIVE = 5 * 60
 counter = 0
 
 while True:
-    file = open("last_counter.txt", "r")
-    counter = int(file.readline().strip()) + 1
-    file = open("last_counter.txt", "w")
-    file.write(str(counter))
-    file.close()
-    print(f"NEW LOG CREATED: 'log{counter}.txt'")
-    log_file = open(f"log{counter}.txt", "a", encoding="UTF-8")
+    # file = open("last_counter.txt", "r")
+    # counter = int(file.readline().strip()) + 1
+    # file = open("last_counter.txt", "w")
+    # file.write(str(counter))
+    # file.close()
+    # print(f"NEW LOG CREATED: 'log{counter}.txt'")
+    # log_file = open(f"log{counter}.txt", "a", encoding="UTF-8")
     try:
         restore()
         bot.polling(none_stop=True, interval=0)
     except [requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout]:
         print("========= CONNECTION TROUBLES, TRYING TO RERUN! ==========")
     finally:
-        log_file.close()
+        # log_file.close()
         bot.send_message(admin_id, "Some error occurred, please check!")
         save()

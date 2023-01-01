@@ -1,19 +1,46 @@
 import requests
 import json
+import os
 
-base_urls = ["https://cloud.iexapis.com", "https://sandbox.iexapis.com"]
-tokens = []
-f = open("config.txt", "r")
-for i in range(3):
-    tokens.append(f.readline().strip())
+base_urls = {
+    "main": "https://cloud.iexapis.com",
+    "sandbox": "https://sandbox.iexapis.com"
+}
+tokens = {
+    "main": os.environ["HSEDUCK_BOT_IEXAPI_TOKEN_SECRET"],
+    "sandbox": os.environ["HSEDUCK_BOT_IEXAPI_TOKEN_SANDBOX"]
+}
 
-cur_type = 1
-base_url = base_urls[cur_type]
+valid_modes = {"main", "sandbox"}
+mode = "sandbox"
+base_url = base_urls[mode]
 version = "stable"
-token = tokens[cur_type]
+token = tokens[mode]
 base_params = {
     "token": token
 }
+
+
+def set_mode(new_mode):
+    global mode, token, tokens, base_urls, base_url
+    if new_mode not in valid_modes:
+        return False
+    mode = new_mode
+
+    base_url = base_urls[mode]
+    token = tokens[mode]
+    base_params["token"] = token
+
+    print("MODE SWITCHED TO: ", mode)
+    return True
+
+
+def switch_mode():
+    global mode
+    if mode == "main":
+        set_mode("sandbox")
+    else:
+        set_mode("main")
 
 
 def get_best_matches(s):
@@ -27,18 +54,9 @@ def get_best_matches(s):
         return {"message": "failed"}
 
 
-def get_type():
-    global cur_type
-    return cur_type
-
-
-def switch_type():
-    global cur_type, token, tokens, base_urls, base_url
-    cur_type = 1 - cur_type
-    base_url = base_urls[cur_type]
-    token = tokens[cur_type]
-    base_params["token"] = token
-    print("TYPE SWITCHED TO: ", cur_type)
+def get_mode():
+    global mode
+    return mode
 
 
 def get_multiple_quote(symbols):
@@ -46,6 +64,7 @@ def get_multiple_quote(symbols):
     params["types"] = "quote"
     symbols_param = ','.join(symbols)
     url = f"{base_url}/{version}/stock/market/batch?types=quote&token={token}&symbols={symbols_param}"
+    # print(url)
     result = requests.get(url)
     # print("RESP: ", result.text)
     try:
@@ -86,4 +105,6 @@ if __name__ == "__main__":
     #     print(f"========== {key} ==========")
     #     for value in data[key]:
     #         print(f"{value}: {data[key]}")
-    json = get_best_matches("Microsoft")
+    # set_mode("main")
+    response = get_multiple_quote(["INTL", "AAPL", "TWTR", "FB"])
+    print(json.dumps(response, indent=2))
