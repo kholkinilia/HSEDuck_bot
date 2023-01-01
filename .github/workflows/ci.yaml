@@ -15,4 +15,4 @@ jobs:
           HSEDUCK_BOT_IEXAPI_TOKEN_SANDBOX: ${{ secrets.HSEDUCK_BOT_IEXAPI_TOKEN_SANDBOX }}
           HSEDUCK_BOT_IEXAPI_TOKEN_SECRET: ${{ secrets.HSEDUCK_BOT_IEXAPI_TOKEN_SECRET }}
           HSEDUCK_BOT_TELEGRAM_TOKEN: ${{ secrets.HSEDUCK_BOT_TELEGRAM_TOKEN }}
-      - run: make run
+        run: make run
