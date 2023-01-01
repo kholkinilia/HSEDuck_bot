@@ -1,6 +1,7 @@
 import random
 import stock_handler
 import json
+import os
 
 # TODO: make money integers
 
@@ -8,23 +9,23 @@ challenges = dict()
 users = dict()
 
 
-def save():
+def save(directory):
     chall = encode_challenges()
     user = encode_users()
-    f = open("challenges.json", "w")
+    f = open(os.path.join(directory, "challenges.json"), "w")
     f.write(json.dumps(chall))
     f.close()
-    f = open("users.json", "w")
+    f = open(os.path.join(directory, "users.json"), "w")
     f.write(json.dumps(user))
     f.close()
 
 
-def restore():
+def restore(directory):
     global challenges, users
-    f = open("challenges.json", "r")
+    f = open(os.path.join(directory, "challenges.json"), "r")
     decode_challenges(json.loads(f.readline()))
     f.close()
-    f = open("users.json", "r")
+    f = open(os.path.join(directory, "users.json"), "r")
     decode_users(json.loads(f.readline()))
     f.close()
 
