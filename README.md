@@ -7,8 +7,6 @@ Just a python project in HSE. It has the following functionality:
 * Search for companies' symbols and then see the latest price of the stock
 * See the stats of your portfolio.
 * Create multiple portfolios. Just so you can divide your portfolios by the risk level.
-### Not a full project:
-I'm not sure that it's how the project supposed to be committed (I didn't add python and libraries to the project, so it might not work right away, but it's easy to fix)
 ### Sandbox initially:
 Initially the bot is in sandbox mode, which means that it's operating with not real information. 
 To switch the bot to a real mode you either need to change the admin variable to your id
@@ -24,5 +22,3 @@ because of the 100% restriction on selling short. (You still can spend money tha
 you won't go broke. This is, actually, quite the only way to go broke) So, be careful!
 ### English:
 Sori for mai bad Englich :(
-### To hackers:
-I replaced API tokens with others, so you can't use them (don't worry, they were free).
