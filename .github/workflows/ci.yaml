@@ -10,9 +10,4 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v2
-      - env:
-          HSEDUCK_BOT_ADMIN_ID: ${{ secrets.HSEDUCK_BOT_ADMIN_ID }}
-          HSEDUCK_BOT_IEXAPI_TOKEN_SANDBOX: ${{ secrets.HSEDUCK_BOT_IEXAPI_TOKEN_SANDBOX }}
-          HSEDUCK_BOT_IEXAPI_TOKEN_SECRET: ${{ secrets.HSEDUCK_BOT_IEXAPI_TOKEN_SECRET }}
-          HSEDUCK_BOT_TELEGRAM_TOKEN: ${{ secrets.HSEDUCK_BOT_TELEGRAM_TOKEN }}
-        run: make run
+      - run: make init
